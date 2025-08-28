@@ -1,6 +1,6 @@
 [package]
 name = "lurk_lcsc"
-version = "2.3.1"
+version = "2.3.2"
 authors = ["Riley Ziegler", "S. Seth Long, Ph.D"]
 edition = "2024"
 license = "MIT"
