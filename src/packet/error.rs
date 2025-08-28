@@ -1,5 +1,7 @@
 use serde::Serialize;
 use std::io::Write;
+#[cfg(feature = "logging")]
+use tracing::error;
 
 use crate::{LurkError, Packet, Parser, PktType};
 
