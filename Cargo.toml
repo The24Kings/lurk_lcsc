@@ -1,5 +1,5 @@
 [package]
-name = "lurk_rs"
+name = "lurk_lcsc"
 version = "2.3.0"
 authors = ["Riley Ziegler", "S. Seth Long, Ph.D"]
 edition = "2024"
