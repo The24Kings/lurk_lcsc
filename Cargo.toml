@@ -3,6 +3,8 @@ name = "lurk_rs"
 version = "2.3.0"
 authors = ["Riley Ziegler", "S. Seth Long, Ph.D"]
 edition = "2024"
+license = "MIT"
+description = "LURK Protocol for Rust"
 
 [features]
 logging = ["dep:tracing", "dep:tabled"]
