@@ -35,7 +35,7 @@ impl std::fmt::Display for Action {
 }
 
 pub fn input(sender: Sender<Protocol>) -> ! {
-    let prefix = env::var("CMD_PREFIX").expect("[INPUT] CMD_PREFIX must be set");
+    let prefix = env::var("CMD_PREFIX").unwrap_or(String::from("!"));
 
     #[cfg(feature = "tracing")]
     info!("[INPUT] Listening for commands with prefix: '{}'", prefix);

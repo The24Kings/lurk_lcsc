@@ -1,23 +1,21 @@
 use std::collections::HashMap;
-use std::sync::mpsc::Sender;
-use std::{env, io};
 
 pub trait Command {
     /// Returns the name of the command (e.g., "help", "broadcast").
-    fn name(&self) -> &'static str;
+    fn name(&self) -> &Box<str>;
 
     /// Executes the command with the provided arguments.
     fn execute(&self, args: &[String]) -> Result<String, String>;
 }
 
 pub struct CommandBuilder {
-    name: String,
+    name: Box<str>,
     execute_fn: Box<dyn Fn(&[String]) -> Result<String, String> + Send + Sync>,
 }
 
 impl CommandBuilder {
     /// Creates a new builder for a command with the given name.
-    pub fn new<S: Into<String>>(name: S) -> Self {
+    pub fn new<S: Into<Box<str>>>(name: S) -> Self {
         Self {
             name: name.into(),
             execute_fn: Box::new(|_| Err("No execution logic defined.".to_string())),
@@ -34,7 +32,7 @@ impl CommandBuilder {
     }
 
     /// Builds the command as a dynamic object.
-    pub fn build(self) -> Box<dyn Command> {
+    pub fn build(self) -> Box<dyn Command + Send + Sync> {
         Box::new(BuiltCommand {
             name: self.name,
             execute_fn: self.execute_fn,
@@ -43,12 +41,12 @@ impl CommandBuilder {
 }
 
 struct BuiltCommand {
-    name: String,
+    name: Box<str>,
     execute_fn: Box<dyn Fn(&[String]) -> Result<String, String> + Send + Sync>,
 }
 
 impl Command for BuiltCommand {
-    fn name(&self) -> &'static str {
+    fn name(&self) -> &Box<str> {
         &self.name
     }
 
@@ -58,7 +56,7 @@ impl Command for BuiltCommand {
 }
 
 pub struct CommandRegistry {
-    commands: HashMap<String, Box<dyn Command + Send + Sync>>, 
+    commands: HashMap<String, Box<dyn Command + Send + Sync>>,
 }
 
 impl CommandRegistry {
@@ -92,7 +90,10 @@ fn main() {
             if args.is_empty() {
                 Ok("Available commands: help, greet".to_string())
             } else {
-                Ok(format!("Help for command '{}': No additional information.", args[0]))
+                Ok(format!(
+                    "Help for command '{}': No additional information.",
+                    args[0]
+                ))
             }
         })
         .build();
