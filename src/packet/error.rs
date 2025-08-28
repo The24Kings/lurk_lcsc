@@ -13,6 +13,9 @@ pub struct PktError {
 
 impl PktError {
     pub fn new(error: LurkError, message: &str) -> Self {
+        #[cfg(feature = "logging")]
+        error!("[SERVER] {}: {}", error, message);
+
         PktError {
             message_type: PktType::ERROR,
             error,
