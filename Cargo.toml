@@ -1,12 +1,12 @@
 [package]
-name = "lurk_protocol"
+name = "lurk_rs"
 version = "2.3.0"
 authors = ["Riley Ziegler", "S. Seth Long, Ph.D"]
 edition = "2024"
 
 [features]
 logging = ["dep:tracing", "dep:tabled"]
-custom-cmds = ["dep:tracing", "dep:tabled", "logging"]
+custom-cmds = []
 
 [dependencies]
 bitflags = { version = "2.9.3", features = ["serde"] }

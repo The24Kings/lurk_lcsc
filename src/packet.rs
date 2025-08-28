@@ -5,10 +5,9 @@ use std::{
 };
 
 #[cfg(feature = "logging")]
-use tracing::debug;
-
-#[cfg(feature = "logging")]
 use crate::pcap::PCap;
+#[cfg(feature = "logging")]
+use tracing::debug;
 
 use crate::PktType;
 

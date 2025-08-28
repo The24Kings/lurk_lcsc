@@ -2,14 +2,12 @@ use std::io::Write;
 use std::net::TcpStream;
 use std::sync::Arc;
 
-#[cfg(feature = "logging")]
-use tracing::{debug, info};
-
-#[cfg(feature = "logging")]
-use crate::pcap::PCap;
-
 #[cfg(feature = "custom-cmds")]
 use crate::commands::Action;
+#[cfg(feature = "logging")]
+use crate::pcap::PCap;
+#[cfg(feature = "logging")]
+use tracing::{debug, info};
 
 use crate::{
     Parser, PktAccept, PktChangeRoom, PktCharacter, PktConnection, PktError, PktFight, PktGame,

@@ -19,7 +19,6 @@ pub mod pkt_type;
 pub mod protocol;
 
 #[cfg(feature = "custom-cmds")]
-pub use self::{
-    commands::{Action, ActionKind},
-    pcap::PCap,
-};
+pub use self::commands::{Action, ActionKind};
+#[cfg(feature = "logging")]
+pub use self::pcap::PCap;
