@@ -6,7 +6,9 @@ pub use packet::{
     version::PktVersion,
 };
 
-pub use self::{flags::CharacterFlags, lurk_error::LurkError, pkt_type::PktType};
+pub use self::{
+    flags::CharacterFlags, lurk_error::LurkError, pkt_type::PktType, protocol::Protocol,
+};
 
 #[cfg(feature = "custom-cmds")]
 pub mod commands;
