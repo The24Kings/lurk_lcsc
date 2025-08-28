@@ -2,7 +2,7 @@ use serde::Serialize;
 use std::sync::mpsc::Sender;
 use std::{env, io};
 
-#[cfg(feature = "logging")]
+#[cfg(feature = "tracing")]
 use tracing::{error, info};
 
 use crate::protocol::Protocol;
@@ -37,7 +37,7 @@ impl std::fmt::Display for Action {
 pub fn input(sender: Sender<Protocol>) -> ! {
     let prefix = env::var("CMD_PREFIX").expect("[INPUT] CMD_PREFIX must be set");
 
-    #[cfg(feature = "logging")]
+    #[cfg(feature = "tracing")]
     info!("[INPUT] Listening for commands with prefix: '{}'", prefix);
 
     loop {
@@ -47,7 +47,7 @@ pub fn input(sender: Sender<Protocol>) -> ! {
         match io::stdin().read_line(&mut input) {
             Ok(_) => {}
             Err(e) => {
-                #[cfg(feature = "logging")]
+                #[cfg(feature = "tracing")]
                 error!("Could not read stdin: {e}");
                 continue;
             }
@@ -57,7 +57,7 @@ pub fn input(sender: Sender<Protocol>) -> ! {
             continue;
         }
 
-        #[cfg(feature = "logging")]
+        #[cfg(feature = "tracing")]
         info!("[INPUT] Parsing command.");
 
         // Sanitize and Tokenize
@@ -78,7 +78,7 @@ pub fn input(sender: Sender<Protocol>) -> ! {
         sender
             .send(Protocol::Command(Action { kind, argv, argc }))
             .unwrap_or_else(|_| {
-                #[cfg(feature = "logging")]
+                #[cfg(feature = "tracing")]
                 error!("[INPUT] Failed to send INPUT packet");
             })
     }

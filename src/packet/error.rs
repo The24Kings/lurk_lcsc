@@ -1,6 +1,6 @@
 use serde::Serialize;
 use std::io::Write;
-#[cfg(feature = "logging")]
+#[cfg(feature = "tracing")]
 use tracing::error;
 
 use crate::{LurkError, Packet, Parser, PktType};
@@ -15,7 +15,7 @@ pub struct PktError {
 
 impl PktError {
     pub fn new(error: LurkError, message: &str) -> Self {
-        #[cfg(feature = "logging")]
+        #[cfg(feature = "tracing")]
         error!("[SERVER] {}: {}", error, message);
 
         PktError {

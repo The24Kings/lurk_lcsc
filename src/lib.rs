@@ -10,17 +10,17 @@ pub use self::{
     flags::CharacterFlags, lurk_error::LurkError, pkt_type::PktType, protocol::Protocol,
 };
 
-#[cfg(feature = "custom-cmds")]
+#[cfg(feature = "commands")]
 pub mod commands;
 pub mod flags;
 pub mod lurk_error;
 pub mod packet;
-#[cfg(feature = "logging")]
+#[cfg(feature = "tracing")]
 pub mod pcap;
 pub mod pkt_type;
 pub mod protocol;
 
-#[cfg(feature = "custom-cmds")]
+#[cfg(feature = "commands")]
 pub use self::commands::{Action, ActionKind};
-#[cfg(feature = "logging")]
+#[cfg(feature = "tracing")]
 pub use self::pcap::PCap;

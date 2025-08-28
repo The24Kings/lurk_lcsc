@@ -1,14 +1,14 @@
 [package]
 name = "lurk_lcsc"
-version = "2.3.2"
+version = "2.3.3"
 authors = ["Riley Ziegler", "S. Seth Long, Ph.D"]
 edition = "2024"
 license = "MIT"
 description = "LURK Protocol for Rust"
 
 [features]
-logging = ["dep:tracing", "dep:tabled"]
-custom-cmds = []
+tracing = ["dep:tracing", "dep:tabled"]
+commands = []
 
 [dependencies]
 bitflags = { version = "2.9.3", features = ["serde"] }

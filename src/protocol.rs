@@ -2,11 +2,11 @@ use std::io::Write;
 use std::net::TcpStream;
 use std::sync::Arc;
 
-#[cfg(feature = "custom-cmds")]
+#[cfg(feature = "commands")]
 use crate::commands::Action;
-#[cfg(feature = "logging")]
+#[cfg(feature = "tracing")]
 use crate::pcap::PCap;
-#[cfg(feature = "logging")]
+#[cfg(feature = "tracing")]
 use tracing::{debug, info};
 
 use crate::{
@@ -29,7 +29,7 @@ pub enum Protocol {
     Leave(Arc<TcpStream>, PktLeave),
     Connection(Arc<TcpStream>, PktConnection),
     Version(Arc<TcpStream>, PktVersion),
-    #[cfg(feature = "custom-cmds")]
+    #[cfg(feature = "commands")]
     Command(Action),
 }
 
@@ -50,7 +50,7 @@ impl std::fmt::Display for Protocol {
             Protocol::Leave(_, leave) => write!(f, "{}", leave),
             Protocol::Connection(_, connection) => write!(f, "{}", connection),
             Protocol::Version(_, version) => write!(f, "{}", version),
-            #[cfg(feature = "custom-cmds")]
+            #[cfg(feature = "commands")]
             Protocol::Command(action) => write!(f, "{}", action),
         }
     }
@@ -60,7 +60,7 @@ impl Protocol {
     pub fn send(self) -> Result<(), std::io::Error> {
         let mut byte_stream: Vec<u8> = Vec::new();
 
-        #[cfg(feature = "logging")]
+        #[cfg(feature = "tracing")]
         info!("[PROTOCOL] Sending packet: {}", self);
 
         // Serialize the packet and send it to the server
@@ -121,7 +121,7 @@ impl Protocol {
                 content.serialize(&mut byte_stream)?;
                 author
             }
-            #[cfg(feature = "custom-cmds")]
+            #[cfg(feature = "commands")]
             _ => {
                 return Err(std::io::Error::new(
                     std::io::ErrorKind::InvalidInput,
@@ -130,7 +130,7 @@ impl Protocol {
             }
         };
 
-        #[cfg(feature = "logging")]
+        #[cfg(feature = "tracing")]
         debug!("[PROTOCOL] Packet:\n{}", PCap::build(byte_stream.clone()));
 
         author.as_ref().write_all(&byte_stream)?;

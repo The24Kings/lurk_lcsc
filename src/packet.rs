@@ -4,9 +4,9 @@ use std::{
     sync::Arc,
 };
 
-#[cfg(feature = "logging")]
+#[cfg(feature = "tracing")]
 use crate::pcap::PCap;
-#[cfg(feature = "logging")]
+#[cfg(feature = "tracing")]
 use tracing::debug;
 
 use crate::PktType;
@@ -60,7 +60,7 @@ impl<'a> Packet<'a> {
             )
         })?;
 
-        #[cfg(feature = "logging")]
+        #[cfg(feature = "tracing")]
         debug!("[DEBUG] Packet body:\n{}", PCap::build(buffer.clone()));
 
         // Create a new packet with the read bytes
@@ -89,7 +89,7 @@ impl<'a> Packet<'a> {
         let length = usize::from_le_bytes([buffer[index.0], buffer[index.1], 0, 0, 0, 0, 0, 0]);
         let mut desc = vec![0u8; length];
 
-        #[cfg(feature = "logging")]
+        #[cfg(feature = "tracing")]
         debug!(
             "[PACKET] Reading description of length {} at index {}, {}",
             length, index.0, index.1
@@ -103,7 +103,7 @@ impl<'a> Packet<'a> {
             )
         })?;
 
-        #[cfg(feature = "logging")]
+        #[cfg(feature = "tracing")]
         if !desc.is_empty() {
             debug!(
                 "[PACKET] Read description: {}",
