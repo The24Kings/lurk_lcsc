@@ -10,8 +10,6 @@ pub use self::{
     flags::CharacterFlags, lurk_error::LurkError, pkt_type::PktType, protocol::Protocol,
 };
 
-#[cfg(feature = "commands")]
-pub mod commands;
 pub mod flags;
 pub mod lurk_error;
 pub mod packet;
@@ -20,7 +18,5 @@ pub mod pcap;
 pub mod pkt_type;
 pub mod protocol;
 
-#[cfg(feature = "commands")]
-pub use self::commands::{Action, ActionKind};
 #[cfg(feature = "tracing")]
 pub use self::pcap::PCap;

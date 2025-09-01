@@ -2,8 +2,6 @@ use std::io::Write;
 use std::net::TcpStream;
 use std::sync::Arc;
 
-#[cfg(feature = "commands")]
-use crate::commands::Action;
 #[cfg(feature = "tracing")]
 use crate::pcap::PCap;
 #[cfg(feature = "tracing")]
@@ -29,8 +27,6 @@ pub enum Protocol {
     Leave(Arc<TcpStream>, PktLeave),
     Connection(Arc<TcpStream>, PktConnection),
     Version(Arc<TcpStream>, PktVersion),
-    #[cfg(feature = "commands")]
-    Command(Action),
 }
 
 impl std::fmt::Display for Protocol {
@@ -50,8 +46,6 @@ impl std::fmt::Display for Protocol {
             Protocol::Leave(_, leave) => write!(f, "{}", leave),
             Protocol::Connection(_, connection) => write!(f, "{}", connection),
             Protocol::Version(_, version) => write!(f, "{}", version),
-            #[cfg(feature = "commands")]
-            Protocol::Command(action) => write!(f, "{}", action),
         }
     }
 }
@@ -120,13 +114,6 @@ impl Protocol {
             Protocol::Version(author, content) => {
                 content.serialize(&mut byte_stream)?;
                 author
-            }
-            #[cfg(feature = "commands")]
-            _ => {
-                return Err(std::io::Error::new(
-                    std::io::ErrorKind::InvalidInput,
-                    "Cannot send this Protocol type",
-                ));
             }
         };
 

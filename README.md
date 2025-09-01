@@ -27,5 +27,5 @@ Add `lurk_lcsc` to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-lurk_lcsc = { version = "2.3.3" }
+lurk_lcsc = { version = "2.3.5" }
 ```
