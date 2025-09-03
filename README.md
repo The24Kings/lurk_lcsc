@@ -17,7 +17,6 @@ This crate implements the [LURK Protocol](https://github.com/The24Kings/LurkProt
 ### Optional Features
 
 - `tracing`: Enables logging via the [tracing](https://crates.io/crates/tracing) crate
-- `commands`: Adds an additional Protocol Message `Command` that currently implements `HELP`, `BROADCAST`, `MESSAGE`, `NUKE`, `OTHER` commands
 
 ---
 
@@ -27,5 +26,5 @@ Add `lurk_lcsc` to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-lurk_lcsc = { version = "2.3.5" }
+lurk_lcsc = { version = "2.3.6" }
 ```
