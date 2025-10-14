@@ -1,7 +1,7 @@
 use serde::Serialize;
 
 /// Represents the different types of packets used in the application.
-#[derive(Default, Serialize, Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Default, Debug, Serialize, Clone, Copy, PartialEq, Eq, Hash)]
 #[repr(u8)]
 pub enum PktType {
     #[default]
