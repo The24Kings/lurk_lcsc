@@ -1,27 +1,53 @@
 use serde::Serialize;
 
-#[derive(Default, Serialize)]
+/// Represents possible error codes for the Lurk protocol.
+#[derive(Default, Serialize, PartialEq, Eq, Hash, Debug)]
 #[repr(u8)]
 pub enum LurkError {
     #[default]
+    /// Not covered by any other error codes
     OTHER,
+    /// Attempt to change to an inappropriate room
     BADROOM,
+    /// Attempt to create a player that already exists.
     PLAYEREXISTS,
+    /// Attempt to loot a nonexistent or not present monster.
     BADMONSTER,
+    /// Caused by setting inappropriate player stats.
     STATERROR,
+    /// Caused by attempting an action too early, for example changing rooms before sending `PktType::START` or `PktType::CHARACTER`.
     NOTREADY,
+    /// Sent in response to attempts to loot nonexistent players, fight players in different rooms, etc.
     NOTARGET,
+    /// Sent if the requested fight cannot happen for other reasons (i.e. no live monsters in room)
     NOFIGHT,
+    /// No player vs. player combat on the server. Servers do not have to support player-vs-player combat.
     NOPLAYERCOMBAT,
 }
-
-impl Into<u8> for LurkError {
-    fn into(self) -> u8 {
-        self as u8
+impl From<LurkError> for u8 {
+    /// Converts a `LurkError` enum variant into its corresponding `u8` value.
+    ///     
+    /// ```rust
+    /// use lurk_lcsc::lurk_error::LurkError;
+    ///
+    /// let err = LurkError::BADROOM;
+    /// let err_u8: u8 = err.into();
+    /// assert_eq!(err_u8, 1);
+    /// ```
+    fn from(e: LurkError) -> Self {
+        e as u8
     }
 }
 
 impl From<u8> for LurkError {
+    /// Converts a `u8` value into its corresponding `LurkError` enum variant.
+    ///
+    /// ```rust
+    /// use lurk_lcsc::lurk_error::LurkError;
+    ///
+    /// let err = LurkError::from(1u8);
+    /// assert_eq!(err, LurkError::BADROOM);
+    /// ```
     fn from(value: u8) -> Self {
         match value {
             0 => LurkError::OTHER,
@@ -39,6 +65,13 @@ impl From<u8> for LurkError {
 }
 
 impl std::fmt::Display for LurkError {
+    /// Formats the `LurkError` enum variant as a human-readable string.
+    ///
+    /// ```rust
+    /// use lurk_lcsc::lurk_error::LurkError;
+    /// let err = LurkError::BADROOM;
+    /// assert_eq!(format!("{}", err), "BadRoom");
+    /// ```
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         match self {
             LurkError::OTHER => write!(f, "Other"),

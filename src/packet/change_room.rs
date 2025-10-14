@@ -1,11 +1,18 @@
 use serde::Serialize;
 use std::io::Write;
 
-use crate::{Packet, Parser, PktType};
+use crate::packet::PktType;
+use crate::{Packet, Parser};
 
+/// Sent by the client only, to change rooms.
+///
+/// If the server changes the room a client is in, it should send an updated room, character, and connection message(s) to explain the new location.
+/// If not, for example because the client is not ready to start or specified an inappropriate choice, and error should be sent.
 #[derive(Serialize)]
 pub struct PktChangeRoom {
+    /// The type of message for the `CHANGEROOM` packet. Default is 2.
     pub message_type: PktType,
+    /// Number of the room to change to. The server will send an error if an inappropriate choice is made.
     pub room_number: u16,
 }
 
@@ -20,12 +27,11 @@ impl std::fmt::Display for PktChangeRoom {
     }
 }
 
-impl<'a> Parser<'a> for PktChangeRoom {
+impl Parser<'_> for PktChangeRoom {
     fn serialize<W: Write>(self, writer: &mut W) -> Result<(), std::io::Error> {
         // Package into a byte array
-        let mut packet: Vec<u8> = Vec::new();
+        let mut packet: Vec<u8> = vec![self.message_type.into()];
 
-        packet.push(self.message_type.into());
         packet.extend(self.room_number.to_le_bytes());
 
         // Write the packet to the buffer

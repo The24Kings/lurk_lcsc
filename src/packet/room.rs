@@ -1,14 +1,26 @@
 use serde::Serialize;
 use std::io::Write;
 
-use crate::{Packet, Parser, PktType};
+use crate::packet::PktType;
+use crate::{Packet, Parser};
 
 #[derive(Serialize)]
+/// Sent by the server to describe the room that the player is in.
+///
+/// - This should be an expected response to `PktType::CHANGEROOM` or `PktType::START`.
+/// - Can be re-sent at any time, for example if the player is teleported or falls through a floor.
+/// - Outgoing connections will be specified with a series of `PktType::CONNECTION` messages.
+/// - Monsters and players in the room should be listed using a series of `PktType::CHARACTER` messages.
 pub struct PktRoom {
+    /// The type of message for the `ROOM` packet. Defaults to 9
     pub message_type: PktType,
-    pub room_number: u16, // Same as room_number in ChangeRoom
+    /// The room number the player is currently in. This is the same as the room number used in `PktType::CHANGEROOM`.
+    pub room_number: u16,
+    /// The name of the room, up to 32 bytes.
     pub room_name: Box<str>,
+    /// The length of the room description.
     pub description_len: u16,
+    /// The room description.
     pub description: Box<str>,
 }
 
@@ -22,12 +34,11 @@ impl std::fmt::Display for PktRoom {
     }
 }
 
-impl<'a> Parser<'a> for PktRoom {
+impl Parser<'_> for PktRoom {
     fn serialize<W: Write>(self, writer: &mut W) -> Result<(), std::io::Error> {
         // Package into a byte array
-        let mut packet: Vec<u8> = Vec::new();
+        let mut packet: Vec<u8> = vec![self.message_type.into()];
 
-        packet.push(self.message_type.into());
         packet.extend(self.room_number.to_le_bytes());
 
         let mut room_name_bytes = self.room_name.as_bytes().to_vec();

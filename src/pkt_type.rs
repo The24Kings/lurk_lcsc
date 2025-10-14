@@ -1,33 +1,69 @@
 use serde::Serialize;
 
-#[derive(Default, Serialize, Debug, Clone, Copy)]
+/// Represents the different types of packets used in the application.
+#[derive(Default, Serialize, Debug, Clone, Copy, PartialEq, Eq, Hash)]
 #[repr(u8)]
 pub enum PktType {
     #[default]
+    /// The default packet type, used as a fallback or uninitialized value.
     DEFAULT,
+    /// Represents a message packet, typically used for communication between players.
     MESSAGE,
+    /// Represents a request to change the room.
     CHANGEROOM,
+    /// Represents a fight packet to fight monsters.
     FIGHT,
+    /// Represents a player-versus-player fight packet.
     PVPFIGHT,
+    /// Represents a loot packet.
     LOOT,
+    /// Represents a start packet.
     START,
+    /// Represents an error packet.
     ERROR,
+    /// Represents an accept packet.
     ACCEPT,
+    /// Represents a room packet.
     ROOM,
+    /// Represents a character packet.
     CHARACTER,
+    /// Represents a game packet.
     GAME,
+    /// Represents a leave packet.
     LEAVE,
+    /// Represents a connection packet.
     CONNECTION,
+    /// Represents a version packet.
     VERSION,
 }
 
-impl Into<u8> for PktType {
-    fn into(self) -> u8 {
-        self as u8
+impl From<PktType> for u8 {
+    /// Converts a `PktType` enum variant into its corresponding `u8` value.
+    ///
+    /// ```rust
+    /// use lurk_lcsc::pkt_type::PktType;
+    ///
+    /// let pkt = PktType::MESSAGE;
+    /// let pkt_u8: u8 = pkt.into();
+    /// assert_eq!(pkt_u8, 1);
+    ///
+    /// let pkt2 = PktType::from(1u8);
+    /// assert_eq!(pkt2, PktType::MESSAGE);
+    /// ```
+    fn from(val: PktType) -> Self {
+        val as u8
     }
 }
 
 impl From<u8> for PktType {
+    /// Converts a `u8` value into its corresponding `PktType` enum variant.
+    /// # Example
+    /// ```rust
+    /// use lurk_lcsc::pkt_type::PktType;
+    ///
+    /// let pkt_type = PktType::from(3u8);
+    /// assert_eq!(pkt_type, PktType::FIGHT);
+    /// ```
     fn from(value: u8) -> Self {
         match value {
             0 => PktType::DEFAULT,
@@ -51,6 +87,14 @@ impl From<u8> for PktType {
 }
 
 impl std::fmt::Display for PktType {
+    /// Formats the `PktType` enum variant as a human-readable string.
+    /// # Example
+    /// ```rust
+    /// use lurk_lcsc::pkt_type::PktType;
+    ///
+    /// let pkt = PktType::FIGHT;
+    /// assert_eq!(format!("{}", pkt), "Fight");
+    /// ```
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             PktType::DEFAULT => write!(f, "Default"),
