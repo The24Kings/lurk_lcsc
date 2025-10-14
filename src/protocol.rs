@@ -88,9 +88,8 @@ impl Protocol {
     /// use std::net::TcpStream;
     /// use std::sync::Arc;
     ///
-    /// // Assume you have a TcpStream and a PktMessage
     /// let stream = Arc::new(TcpStream::connect("127.0.0.1:8080").unwrap());
-    /// let pkt_message = PktMessage::server("Recipient", "Hello, server!");
+    /// let pkt_message = PktMessage::server("Recipient", "Message");
     ///
     /// // Send the packet
     /// Protocol::Message(stream.clone(), pkt_message).send().unwrap();
@@ -174,33 +173,15 @@ impl Protocol {
     /// ```no_run
     /// use lurk_lcsc::{Protocol, PktLeave};
     /// use std::io::{Error, ErrorKind};
-    /// use std::sync::{Arc, mpsc};
     /// use std::net::TcpStream;
+    /// use std::sync::Arc;
     ///
     /// let stream = Arc::new(TcpStream::connect("127.0.0.1:8080").unwrap());
-    /// let (sender, receiver) = mpsc::channel();
     ///
     /// loop {
     ///     let packet = match Protocol::recv(&stream) {
     ///         Ok(pkt) => pkt,
-    ///         Err(e) => {
-    ///             match e.kind() {
-    ///                 ErrorKind::UnexpectedEof | ErrorKind::Unsupported => {
-    ///                     eprintln!("[READ] '{:?}' -> {}. Terminating.", e.kind(), e);
-    ///                 }
-    ///                 _ => {
-    ///                     eprintln!("[READ] '{:?}' -> {}. Continuing.", e.kind(), e);
-    ///                     continue; // Continue processing other packets
-    ///                 }
-    ///             }
-    ///
-    ///             // Exit gracefully
-    ///             sender
-    ///                 .send(Protocol::Leave(stream.clone(), PktLeave::default()))
-    ///                 .unwrap();
-    ///             
-    ///             break;
-    ///         }
+    ///         Err(e) => todo!("Handle any errors"),
     ///     };
     ///
     ///     todo!("Send packet to server")

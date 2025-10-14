@@ -43,11 +43,11 @@ pub mod version;
 /// Trait for serializing and deserializing packets.
 ///
 /// ```no_run
+/// use lurk_lcsc::packet::{Packet, Parser};
+/// use lurk_lcsc::pkt_type::PktType;
 /// use serde::Serialize;
 /// use std::io::Write;
 ///
-/// use lurk_lcsc::pkt_type::PktType;
-/// use lurk_lcsc::packet::{Packet, Parser};
 ///
 /// pub struct PktLoot {
 ///    pub message_type: PktType,
@@ -64,12 +64,10 @@ pub mod version;
 ///         packet.extend(target_name_bytes);
 ///
 ///         // Write the packet to the buffer
-///         writer.write_all(&packet).map_err(|_| {
-///             std::io::Error::new(
-///                 std::io::ErrorKind::Other,
-///                 "Failed to write packet to buffer",
-///             )
-///         })?;
+///         writer
+///             .write_all(&packet)
+///             .map_err(|_| std::io::Error::other("Failed to write packet to buffer"))?;
+///
 ///         Ok(())
 ///     }
 ///
@@ -93,11 +91,11 @@ pub trait Parser<'a>: Sized + 'a {
     /// Deserializes a Packet into the implementing type.
     ///
     /// ```no_run
+    /// use lurk_lcsc::{Protocol, PktType, PktMessage, Packet, Parser};
     /// use std::io::{Read, Error, ErrorKind};
     /// use std::sync::{Arc, mpsc};
     /// use std::net::TcpStream;
     ///
-    /// use lurk_lcsc::{Protocol, PktType, PktMessage, Packet, Parser};
     ///
     /// let stream = Arc::new(TcpStream::connect("127.0.0.1:8080").unwrap());
     ///
