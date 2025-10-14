@@ -73,16 +73,16 @@ pub mod version;
 ///         Ok(())
 ///     }
 ///
-///     fn deserialize(packet: Packet) -> Result<Self, std::io::Error> {
+///     fn deserialize(packet: Packet) -> Self {
 ///         let message_type = packet.message_type;
 ///         let target_name = String::from_utf8_lossy(&packet.body[0..32])
 ///             .trim_end_matches('\0')
 ///             .into();
 ///
-///         Ok(PktLoot {
+///         Self {
 ///             message_type,
 ///             target_name,
-///         })
+///         }
 ///     }
 /// }
 /// ```
@@ -93,15 +93,13 @@ pub trait Parser<'a>: Sized + 'a {
     /// Deserializes a Packet into the implementing type.
     ///
     /// ```no_run
+    /// use std::io::{Read, Error, ErrorKind};
+    /// use std::sync::{Arc, mpsc};
     /// use std::net::TcpStream;
-    /// use std::io::Read;
-    /// use std::sync::{Arc, mpsc::channel};
     ///
-    /// use lurk_lcsc::{Protocol, PktType};
-    /// use lurk_lcsc::packet::{Packet, Parser};
+    /// use lurk_lcsc::{Protocol, PktType, PktMessage, Packet, Parser};
     ///
     /// let stream = Arc::new(TcpStream::connect("127.0.0.1:8080").unwrap());
-    /// let (sender, receiver) = channel();
     ///
     /// let mut buffer = [0; 1];
     /// let bytes_read = stream.as_ref().read(&mut buffer).unwrap();
@@ -112,38 +110,22 @@ pub trait Parser<'a>: Sized + 'a {
     /// }
     ///
     /// // Match the type of the packet to the enum Type
-    /// let packet = match packet_type {
+    /// let packet: Result<Protocol, Error> = match packet_type {
     ///     PktType::MESSAGE => {
-    ///         let mut buffer = vec![0; 66];
+    ///        let mut buffer = vec![0; 66];
     ///
-    ///         let packet = Packet::read_extended(&stream, packet_type, &mut buffer, (0, 1)).unwrap();
+    ///        let pkt = Packet::read_extended(&stream, packet_type, &mut buffer, (0, 1)).unwrap();
     ///
-    ///         let object = match Parser::deserialize(packet) {
-    ///             Ok(deserialized) => Protocol::Message(stream.clone(), deserialized),
-    ///             Err(_) => { todo!("Handle deserialization error") },
-    ///         };
-    ///
-    ///         // Send the packet to the sender
-    ///         Some(object)
-    ///     }
+    ///        Ok(Protocol::Message(
+    ///            stream.clone(),
+    ///            PktMessage::deserialize(pkt),
+    ///        ))
+    ///    },
     ///     _ => todo!("Handle other packet types"),
+    ///     PktType::DEFAULT => Err(Error::new(ErrorKind::Unsupported, "Invalid packet type")),
     /// };
-    ///
-    /// // Send the packet to the server thread
-    /// match packet {
-    ///     Some(pkt) => {
-    ///         sender.send(pkt).map_err(|e| {
-    ///             // If the send fails with SendError, it means the server thread has closed
-    ///             std::io::Error::new(
-    ///                 std::io::ErrorKind::BrokenPipe,
-    ///                 format!("Failed to send packet: {}", e),
-    ///             )
-    ///         }).unwrap();
-    ///     }
-    ///     None => todo!("Handle None packet"),
-    /// }
     /// ```
-    fn deserialize(packet: Packet) -> Result<Self, std::io::Error>;
+    fn deserialize(packet: Packet) -> Self;
 }
 
 /// Represents a network packet containing a reference to the TCP stream, packet type, and body.

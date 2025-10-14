@@ -46,20 +46,17 @@ impl Parser<'_> for PktAccept {
         packet.extend(self.accept_type.to_le_bytes());
 
         // Write the packet to the buffer
-        writer.write_all(&packet).map_err(|_| {
-            std::io::Error::new(
-                std::io::ErrorKind::Other,
-                "Failed to write packet to buffer",
-            )
-        })?;
+        writer
+            .write_all(&packet)
+            .map_err(|_| std::io::Error::other("Failed to write packet to buffer"))?;
 
         Ok(())
     }
 
-    fn deserialize(packet: Packet) -> Result<Self, std::io::Error> {
-        Ok(PktAccept {
+    fn deserialize(packet: Packet) -> Self {
+        Self {
             message_type: packet.message_type,
             accept_type: packet.body[0],
-        })
+        }
     }
 }

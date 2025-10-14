@@ -57,17 +57,14 @@ impl Parser<'_> for PktError {
         packet.extend(self.message.as_bytes());
 
         // Write the packet to the buffer
-        writer.write_all(&packet).map_err(|_| {
-            std::io::Error::new(
-                std::io::ErrorKind::Other,
-                "Failed to write packet to buffer",
-            )
-        })?;
+        writer
+            .write_all(&packet)
+            .map_err(|_| std::io::Error::other("Failed to write packet to buffer"))?;
 
         Ok(())
     }
 
-    fn deserialize(packet: Packet) -> Result<Self, std::io::Error> {
+    fn deserialize(packet: Packet) -> Self {
         let message_type = packet.message_type;
         let error = LurkError::from(packet.body[0]);
         let message_len = u16::from_le_bytes([packet.body[1], packet.body[2]]);
@@ -75,11 +72,11 @@ impl Parser<'_> for PktError {
             .trim_end_matches('\0')
             .into();
 
-        Ok(PktError {
+        Self {
             message_type,
             error,
             message_len,
             message,
-        })
+        }
     }
 }

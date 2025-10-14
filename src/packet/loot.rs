@@ -33,25 +33,22 @@ impl Parser<'_> for PktLoot {
         packet.extend(target_name_bytes);
 
         // Write the packet to the buffer
-        writer.write_all(&packet).map_err(|_| {
-            std::io::Error::new(
-                std::io::ErrorKind::Other,
-                "Failed to write packet to buffer",
-            )
-        })?;
+        writer
+            .write_all(&packet)
+            .map_err(|_| std::io::Error::other("Failed to write packet to buffer"))?;
 
         Ok(())
     }
 
-    fn deserialize(packet: Packet) -> Result<Self, std::io::Error> {
+    fn deserialize(packet: Packet) -> Self {
         let message_type = packet.message_type;
         let target_name = String::from_utf8_lossy(&packet.body[0..32])
             .trim_end_matches('\0')
             .into();
 
-        Ok(PktLoot {
+        Self {
             message_type,
             target_name,
-        })
+        }
     }
 }

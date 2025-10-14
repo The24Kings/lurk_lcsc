@@ -54,17 +54,14 @@ impl Parser<'_> for PktConnection {
         packet.extend(self.description.as_bytes());
 
         // Write the packet to the buffer
-        writer.write_all(&packet).map_err(|_| {
-            std::io::Error::new(
-                std::io::ErrorKind::Other,
-                "Failed to write packet to buffer",
-            )
-        })?;
+        writer
+            .write_all(&packet)
+            .map_err(|_| std::io::Error::other("Failed to write packet to buffer"))?;
 
         Ok(())
     }
 
-    fn deserialize(packet: Packet) -> Result<Self, std::io::Error> {
+    fn deserialize(packet: Packet) -> Self {
         let message_type = packet.message_type;
         let room_number = u16::from_le_bytes([packet.body[0], packet.body[1]]);
         let room_name = String::from_utf8_lossy(&packet.body[2..34])
@@ -73,12 +70,12 @@ impl Parser<'_> for PktConnection {
         let description_len = u16::from_le_bytes([packet.body[34], packet.body[35]]);
         let description = String::from_utf8_lossy(&packet.body[36..]).into();
 
-        Ok(PktConnection {
+        Self {
             message_type,
             room_number,
             room_name,
             description_len,
             description,
-        })
+        }
     }
 }

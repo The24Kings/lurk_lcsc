@@ -40,25 +40,22 @@ impl Parser<'_> for PktPVPFight {
         target_name_bytes.resize(32, 0x00); // Pad the name to 32 bytes
         packet.extend(target_name_bytes);
 
-        // Send the packet to the author
-        writer.write_all(&packet).map_err(|_| {
-            std::io::Error::new(
-                std::io::ErrorKind::Other,
-                "Failed to write packet to buffer",
-            )
-        })?;
+        // Write the packet to the buffer
+        writer
+            .write_all(&packet)
+            .map_err(|_| std::io::Error::other("Failed to write packet to buffer"))?;
 
         Ok(())
     }
-    fn deserialize(packet: Packet) -> Result<Self, std::io::Error> {
+    fn deserialize(packet: Packet) -> Self {
         let message_type = packet.message_type;
         let target_name = String::from_utf8_lossy(&packet.body[0..32])
             .trim_end_matches('\0')
             .to_string();
 
-        Ok(PktPVPFight {
+        Self {
             message_type,
             target_name,
-        })
+        }
     }
 }

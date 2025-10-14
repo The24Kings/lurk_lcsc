@@ -46,28 +46,25 @@ impl Parser<'_> for PktGame {
         packet.extend(self.description.as_bytes());
 
         // Write the packet to the buffer
-        writer.write_all(&packet).map_err(|_| {
-            std::io::Error::new(
-                std::io::ErrorKind::Other,
-                "Failed to write packet to buffer",
-            )
-        })?;
+        writer
+            .write_all(&packet)
+            .map_err(|_| std::io::Error::other("Failed to write packet to buffer"))?;
 
         Ok(())
     }
 
-    fn deserialize(packet: Packet) -> Result<Self, std::io::Error> {
+    fn deserialize(packet: Packet) -> Self {
         let initial_points = u16::from_le_bytes([packet.body[0], packet.body[1]]);
         let stat_limit = u16::from_le_bytes([packet.body[2], packet.body[3]]);
         let description_len = u16::from_le_bytes([packet.body[4], packet.body[5]]);
         let description = String::from_utf8_lossy(&packet.body[6..]).into();
 
-        Ok(PktGame {
+        Self {
             message_type: packet.message_type,
             initial_points,
             stat_limit,
             description_len,
             description,
-        })
+        }
     }
 }

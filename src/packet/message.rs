@@ -93,17 +93,14 @@ impl Parser<'_> for PktMessage {
         packet.extend(self.message.as_bytes());
 
         // Write the packet to the buffer
-        writer.write_all(&packet).map_err(|_| {
-            std::io::Error::new(
-                std::io::ErrorKind::Other,
-                "Failed to write packet to buffer",
-            )
-        })?;
+        writer
+            .write_all(&packet)
+            .map_err(|_| std::io::Error::other("Failed to write packet to buffer"))?;
 
         Ok(())
     }
 
-    fn deserialize(packet: Packet) -> Result<Self, std::io::Error> {
+    fn deserialize(packet: Packet) -> Self {
         let message_len = u16::from_le_bytes([packet.body[0], packet.body[1]]);
 
         // Process the names for recipient and sender
@@ -129,13 +126,13 @@ impl Parser<'_> for PktMessage {
             .collect();
         let message = String::from_utf8_lossy(&packet.body[66..]).into();
 
-        Ok(PktMessage {
+        Self {
             message_type: packet.message_type,
             message_len,
             recipient,
             sender,
             narration,
             message,
-        })
+        }
     }
 }
