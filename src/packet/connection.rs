@@ -1,14 +1,30 @@
 use serde::Serialize;
 use std::io::Write;
 
-use crate::{Packet, Parser, PktType};
+use crate::packet::PktType;
+use crate::{Packet, Parser};
 
 #[derive(Serialize)]
+/// Used by the server to describe rooms connected to the room the player is in.
+///
+/// - The client should expect a series of these when changing rooms, but they may be sent at any time.
+///   - For example; After a fight, a secret staircase may extend out of the ceiling enabling another connection.
+/// - Note that the room description may be an abbreviated version of the description sent when a room is actually entered.
+/// - The server may also provide a different room description depending on which room the player is in.
+///
+/// So a description on the connection could read `A strange whirr is heard through the solid oak door`,
+/// and the description attached to the message once the player has entered could read
+/// `Servers line the walls, softly lighting the room in a cacophony of red, green, blue, and yellow flashes`.
 pub struct PktConnection {
+    /// The type of message for the `CONNECTION` packet. Defaults to 13.
     pub message_type: PktType,
+    /// Room number. This is the same room number used for `PktType::CHANGEROOM`
     pub room_number: u16,
+    /// The name of the room this connection leads to, up to 32 bytes.
     pub room_name: Box<str>,
+    /// The length of the room description.
     pub description_len: u16,
+    /// The description of the room this connection leads to.
     pub description: Box<str>,
 }
 
@@ -23,12 +39,11 @@ impl std::fmt::Display for PktConnection {
     }
 }
 
-impl<'a> Parser<'a> for PktConnection {
+impl Parser<'_> for PktConnection {
     fn serialize<W: Write>(self, writer: &mut W) -> Result<(), std::io::Error> {
         // Package into a byte array
-        let mut packet: Vec<u8> = Vec::new();
+        let mut packet: Vec<u8> = vec![self.message_type.into()];
 
-        packet.push(self.message_type.into());
         packet.extend(self.room_number.to_le_bytes());
 
         let mut room_name_bytes = self.room_name.as_bytes().to_vec();
@@ -38,7 +53,7 @@ impl<'a> Parser<'a> for PktConnection {
         packet.extend(self.description_len.to_le_bytes());
         packet.extend(self.description.as_bytes());
 
-        // Send the packet to the author
+        // Write the packet to the buffer
         writer.write_all(&packet).map_err(|_| {
             std::io::Error::new(
                 std::io::ErrorKind::Other,

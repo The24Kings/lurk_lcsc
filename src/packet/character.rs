@@ -1,26 +1,56 @@
-use std::{io::Write, net::TcpStream, os::fd::AsRawFd, sync::Arc};
+use std::{io::Write, net::TcpStream, sync::Arc};
 
-use crate::{CharacterFlags, Packet, Parser, PktType};
+use serde::Serialize;
 
-#[derive(Clone)]
+use crate::Packet;
+use crate::Parser;
+use crate::flags::CharacterFlags;
+use crate::packet::PktType;
+
+#[derive(Clone, Serialize)]
+/// Sent by both the client and the server.
+///
+/// - The server will send this message to show the client changes to their player's status, such as in health or gold.
+/// - The server will also use this message to show other players or monsters in the room the player is in or elsewhere.
+/// - The client should expect to receive character messages at any time, which may be updates to the player or others.
+/// - If the player is in a room with another player, and the other player leaves, a `PktType::CHARACTER` message should be sent to indicate this.
+///   - In many cases, the appropriate room for the outgoing player is the room they have gone to.
+/// - If the player goes to an unknown room, the room number may be set to a room that the player will not encounter (does not have to be part of the map).
+///   - This could be accompanied by a narrative message (for example, "Glorfindel vanishes into a puff of smoke"), but this is not required.
+/// - The client will use this message to set the name, description, attack, defense, regen, and flags when the character is created.
+/// - It can also be used to reprise an abandoned or deceased character.
 pub struct PktCharacter {
+    #[serde(skip_serializing)]
+    /// The TCP stream associated with the author of the packet, if available.
     pub author: Option<Arc<TcpStream>>,
+    /// The type of message for the `CHARACTER` packet. Default is 10.
     pub message_type: PktType,
+    /// The name of the character, up to 32 bytes.
     pub name: Arc<str>,
+    /// The character's flags, represented as a bitfield.
     pub flags: CharacterFlags,
+    /// The character's attack stat.
     pub attack: u16,
+    /// The character's defense stat.
     pub defense: u16,
+    /// The character's regeneration stat.
     pub regen: u16,
+    /// The character's health stat.
     pub health: i16,
+    /// The character's gold amount.
     pub gold: u16,
+    /// The character's current room.
     pub current_room: u16,
+    /// The length of the character's description.
     pub description_len: u16,
+    /// The character's description.
     pub description: Box<str>,
 }
 
 impl PktCharacter {
+    /// Creates a new `PktCharacter` with default values for health, gold, current_room, and flags, cloning other fields from the incoming character.
     pub fn with_defaults_from(incoming: &PktCharacter) -> Self {
-        PktCharacter {
+        Self {
             health: 100,
             gold: 0,
             current_room: 0,
@@ -32,41 +62,19 @@ impl PktCharacter {
 
 impl std::fmt::Display for PktCharacter {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let author = self.author.as_ref().map_or("None".to_string(), |stream| {
-            format!(
-                "\"addr\":\"{}\",\"peer\":\"{}\",\"fd\":{}",
-                stream.peer_addr().unwrap_or(([0, 0, 0, 0], 0).into()),
-                stream.local_addr().unwrap_or(([0, 0, 0, 0], 0).into()),
-                stream.as_raw_fd()
-            )
-        });
-
         write!(
             f,
-            "{{\"author\":{{{author}}},\"message_type\":\"{}\",\"name\":\"{}\",\"flags\":\"0b{:08b}\",\
-            \"attack\":{},\"defense\":{},\"regen\":{},\"health\":{},\"gold\":{},\"current_room\":{},\
-            \"description_len\":{},\"description\":\"{}\"}}",
-            self.message_type,
-            self.name,
-            self.flags.bits(),
-            self.attack,
-            self.defense,
-            self.regen,
-            self.health,
-            self.gold,
-            self.current_room,
-            self.description_len,
-            self.description
+            "{}",
+            serde_json::to_string(self)
+                .unwrap_or_else(|_| "Failed to serialize Character".to_string())
         )
     }
 }
 
-impl<'a> Parser<'a> for PktCharacter {
+impl Parser<'_> for PktCharacter {
     fn serialize<W: Write>(self, writer: &mut W) -> Result<(), std::io::Error> {
         // Package into a byte array
-        let mut packet: Vec<u8> = Vec::new();
-
-        packet.push(self.message_type.into());
+        let mut packet: Vec<u8> = vec![self.message_type.into()];
 
         // Serialize the character name
         let mut name_bytes = self.name.as_bytes().to_vec();

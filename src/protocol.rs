@@ -12,24 +12,52 @@ use crate::{
     PktLeave, PktLoot, PktMessage, PktPVPFight, PktRoom, PktStart, PktVersion,
 };
 
+/// Represents all possible protocol packets exchanged between the client and server.
 pub enum Protocol {
+    /// Packet containing a message sent between client and server.
     Message(Arc<TcpStream>, PktMessage),
+    /// Packet containing a request to change the room.
     ChangeRoom(Arc<TcpStream>, PktChangeRoom),
+    /// Packet containing a fight request.
     Fight(Arc<TcpStream>, PktFight),
+    /// Packet containing a player-versus-player fight request.
     PVPFight(Arc<TcpStream>, PktPVPFight),
+    /// Packet containing a loot request.
     Loot(Arc<TcpStream>, PktLoot),
+    /// Packet containing a start request.
     Start(Arc<TcpStream>, PktStart),
+    /// Packet containing an error response.
     Error(Arc<TcpStream>, PktError),
+    /// Packet containing an acceptance response.
     Accept(Arc<TcpStream>, PktAccept),
+    /// Packet containing room information.
     Room(Arc<TcpStream>, PktRoom),
+    /// Packet containing character information.
     Character(Arc<TcpStream>, PktCharacter),
+    /// Packet containing game information.
     Game(Arc<TcpStream>, PktGame),
+    /// Packet containing leave information.
     Leave(Arc<TcpStream>, PktLeave),
+    /// Packet containing connection information.
     Connection(Arc<TcpStream>, PktConnection),
+    /// Packet containing version information.
     Version(Arc<TcpStream>, PktVersion),
 }
-
 impl std::fmt::Display for Protocol {
+    /// Formats the `Protocol` enum variant as a human-readable string.
+    ///
+    /// ```no_run
+    /// use std::net::TcpStream;
+    /// use std::sync::Arc;
+    ///
+    /// use lurk_lcsc::{Protocol, PktMessage};
+    ///
+    /// let stream = Arc::new(TcpStream::connect("127.0.0.1:8080").unwrap());
+    /// let pkt_message = PktMessage::server("Recipient", "Hello, server!");
+    /// let protocol = Protocol::Message(stream, pkt_message);
+    ///
+    /// println!("{}", protocol); // Displays the serialized message packet
+    /// ```
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Protocol::Message(_, msg) => write!(f, "{}", msg),
@@ -51,6 +79,20 @@ impl std::fmt::Display for Protocol {
 }
 
 impl Protocol {
+    /// Serializes and sends the protocol packet to the server.
+    ///
+    /// ```no_run
+    /// use std::net::TcpStream;
+    /// use std::sync::Arc;
+    /// use lurk_lcsc::{Protocol, PktMessage};
+    ///
+    /// // Assume you have a TcpStream and a PktMessage
+    /// let stream = Arc::new(TcpStream::connect("127.0.0.1:8080").unwrap());
+    /// let pkt_message = PktMessage::server("Recipient", "Hello, server!");
+    ///
+    /// // Send the packet
+    /// Protocol::Message(stream.clone(), pkt_message).send().unwrap();
+    /// ```
     pub fn send(self) -> Result<(), std::io::Error> {
         let mut byte_stream: Vec<u8> = Vec::new();
 

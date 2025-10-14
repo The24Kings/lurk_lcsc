@@ -3,22 +3,32 @@ use std::io::Write;
 #[cfg(feature = "tracing")]
 use tracing::error;
 
-use crate::{LurkError, Packet, Parser, PktType};
+use crate::lurk_error::LurkError;
+use crate::packet::PktType;
+use crate::{Packet, Parser};
 
+/// Notify the client of an error.
+///
+/// This is used to indicate stat violations, inappropriate room connections, attempts to loot nonexistent or living players, attempts to attack players or monsters in different rooms, etc.
 #[derive(Serialize)]
 pub struct PktError {
+    /// The type of message for the `ERROR` packet. Defaults to 7.
     pub message_type: PktType,
+    /// The specific error code.
     pub error: LurkError,
+    /// The length of the error message.
     pub message_len: u16,
+    /// The error message.
     pub message: Box<str>,
 }
 
 impl PktError {
+    /// Create a new `PktError` with the specified error code and message.
     pub fn new(error: LurkError, message: &str) -> Self {
         #[cfg(feature = "tracing")]
         error!("[SERVER] {}: {}", error, message);
 
-        PktError {
+        Self {
             message_type: PktType::ERROR,
             error,
             message_len: message.len() as u16,
@@ -37,17 +47,16 @@ impl std::fmt::Display for PktError {
     }
 }
 
-impl<'a> Parser<'a> for PktError {
+impl Parser<'_> for PktError {
     fn serialize<W: Write>(self, writer: &mut W) -> Result<(), std::io::Error> {
         // Package into a byte array
-        let mut packet: Vec<u8> = Vec::new();
+        let mut packet: Vec<u8> = vec![self.message_type.into()];
 
-        packet.push(self.message_type.into());
         packet.push(self.error.into());
         packet.extend(self.message_len.to_le_bytes());
         packet.extend(self.message.as_bytes());
 
-        // Send the packet to the author
+        // Write the packet to the buffer
         writer.write_all(&packet).map_err(|_| {
             std::io::Error::new(
                 std::io::ErrorKind::Other,

@@ -1,10 +1,18 @@
 use serde::Serialize;
 use std::io::Write;
 
-use crate::{Packet, Parser, PktType};
+use crate::packet::PktType;
+use crate::{Packet, Parser};
 
 #[derive(Serialize)]
+/// Start playing the game.
+///
+/// - A client will send a `PktType::CHARACTER` message to the server to explain character stats, which the server may either accept or deny (by use of an `PktType::ERROR` message).
+/// - If the stats are accepted, the server will not enter the player into the game world until it has received `PktType::START`.
+/// - This is sent by the client.
+/// - Generally, the server will reply with a `PktType::ROOM`, a `PktType::CHARACTER` message showing the updated room, and a `PktType::CHARACTER` message for each player in the initial room of the game.
 pub struct PktStart {
+    /// The type of message for the `START` packet. Defaults to 6.
     pub message_type: PktType,
 }
 
@@ -26,12 +34,10 @@ impl std::fmt::Display for PktStart {
     }
 }
 
-impl<'a> Parser<'a> for PktStart {
+impl Parser<'_> for PktStart {
     fn serialize<W: Write>(self, writer: &mut W) -> Result<(), std::io::Error> {
         // Package into a byte array
-        let mut packet: Vec<u8> = Vec::new();
-
-        packet.push(self.message_type.into());
+        let packet: Vec<u8> = vec![self.message_type.into()];
 
         // Send the packet to the author
         writer.write_all(&packet).map_err(|_| {

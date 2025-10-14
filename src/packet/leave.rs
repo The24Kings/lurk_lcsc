@@ -1,16 +1,19 @@
 use serde::Serialize;
 use std::io::Write;
 
-use crate::{Packet, Parser, PktType};
+use crate::packet::PktType;
+use crate::{Packet, Parser};
 
 #[derive(Serialize)]
+/// Used by the client to leave the game. This is a graceful way to disconnect. The server never terminates, so it doesn't send `PktType::LEAVE`.
 pub struct PktLeave {
+    /// The type of message for the `LEAVE` packet. Defaults to 12.
     pub message_type: PktType,
 }
 
 impl Default for PktLeave {
     fn default() -> Self {
-        PktLeave {
+        Self {
             message_type: PktType::LEAVE,
         }
     }
@@ -26,12 +29,10 @@ impl std::fmt::Display for PktLeave {
     }
 }
 
-impl<'a> Parser<'a> for PktLeave {
+impl Parser<'_> for PktLeave {
     fn serialize<W: Write>(self, writer: &mut W) -> Result<(), std::io::Error> {
         // Package into a byte array
-        let mut packet: Vec<u8> = Vec::new();
-
-        packet.push(self.message_type.into());
+        let packet: Vec<u8> = vec![self.message_type.into()];
 
         // Write the packet to the buffer
         writer.write_all(&packet).map_err(|_| {
