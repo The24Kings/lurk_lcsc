@@ -2,7 +2,7 @@
 name = "lurk_lcsc"
 version = "2.3.7"
 authors = ["Riley Ziegler", "S. Seth Long, Ph.D"]
-categories = ["network-programming", "protocols", "terminal"]
+categories = ["network-programming"]
 description = "LCSC LURK Protocol written in Rust"
 documentation = "https://docs.rs/lurk-lcsc"
 edition = "2024"
