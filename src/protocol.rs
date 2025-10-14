@@ -1,4 +1,6 @@
+use std::io::Read as _;
 use std::io::Write;
+use std::io::{Error, ErrorKind};
 use std::net::TcpStream;
 use std::sync::Arc;
 
@@ -8,8 +10,8 @@ use crate::pcap::PCap;
 use tracing::{debug, info};
 
 use crate::{
-    Parser, PktAccept, PktChangeRoom, PktCharacter, PktConnection, PktError, PktFight, PktGame,
-    PktLeave, PktLoot, PktMessage, PktPVPFight, PktRoom, PktStart, PktVersion,
+    Packet, Parser, PktAccept, PktChangeRoom, PktCharacter, PktConnection, PktError, PktFight,
+    PktGame, PktLeave, PktLoot, PktMessage, PktPVPFight, PktRoom, PktStart, PktType, PktVersion,
 };
 
 /// Represents all possible protocol packets exchanged between the client and server.
@@ -47,10 +49,10 @@ impl std::fmt::Display for Protocol {
     /// Formats the `Protocol` enum variant as a human-readable string.
     ///
     /// ```no_run
+    /// use lurk_lcsc::{Protocol, PktMessage};
     /// use std::net::TcpStream;
     /// use std::sync::Arc;
     ///
-    /// use lurk_lcsc::{Protocol, PktMessage};
     ///
     /// let stream = Arc::new(TcpStream::connect("127.0.0.1:8080").unwrap());
     /// let pkt_message = PktMessage::server("Recipient", "Hello, server!");
@@ -82,9 +84,9 @@ impl Protocol {
     /// Serializes and sends the protocol packet to the server.
     ///
     /// ```no_run
+    /// use lurk_lcsc::{Protocol, PktMessage};
     /// use std::net::TcpStream;
     /// use std::sync::Arc;
-    /// use lurk_lcsc::{Protocol, PktMessage};
     ///
     /// // Assume you have a TcpStream and a PktMessage
     /// let stream = Arc::new(TcpStream::connect("127.0.0.1:8080").unwrap());
@@ -165,5 +167,163 @@ impl Protocol {
         author.as_ref().write_all(&byte_stream)?;
 
         Ok(())
+    }
+
+    /// Receive one packet from the connected TcpStream
+    ///
+    /// ```no_run
+    /// use lurk_lcsc::{Protocol, PktLeave};
+    /// use std::io::{Error, ErrorKind};
+    /// use std::sync::{Arc, mpsc};
+    /// use std::net::TcpStream;
+    ///
+    /// let stream = Arc::new(TcpStream::connect("127.0.0.1:8080").unwrap());
+    /// let (sender, receiver) = mpsc::channel();
+    ///
+    /// loop {
+    ///     let packet = match Protocol::recv(&stream) {
+    ///         Ok(pkt) => pkt,
+    ///         Err(e) => {
+    ///             match e.kind() {
+    ///                 ErrorKind::UnexpectedEof | ErrorKind::Unsupported => {
+    ///                     eprintln!("[READ] '{:?}' -> {}. Terminating.", e.kind(), e);
+    ///                 }
+    ///                 _ => {
+    ///                     eprintln!("[READ] '{:?}' -> {}. Continuing.", e.kind(), e);
+    ///                     continue; // Continue processing other packets
+    ///                 }
+    ///             }
+    ///
+    ///             // Exit gracefully
+    ///             sender
+    ///                 .send(Protocol::Leave(stream.clone(), PktLeave::default()))
+    ///                 .unwrap();
+    ///             
+    ///             break;
+    ///         }
+    ///     };
+    ///
+    ///     todo!("Send packet to server")
+    /// }
+    /// ```
+    pub fn recv(stream: &Arc<TcpStream>) -> Result<Protocol, std::io::Error> {
+        let mut buffer = [0; 1];
+        let bytes_read = stream.as_ref().read(&mut buffer)?;
+        let packet_type = buffer[0].into();
+
+        if bytes_read != 1 {
+            return Err(Error::new(ErrorKind::UnexpectedEof, "Connection closed"));
+        }
+
+        #[cfg(feature = "tracing")]
+        info!("[PROTOCOL] Read packet type: {}", packet_type);
+
+        match packet_type {
+            PktType::MESSAGE => {
+                let mut buffer = vec![0; 66];
+
+                let pkt = Packet::read_extended(stream, packet_type, &mut buffer, (0, 1))?;
+
+                Ok(Protocol::Message(
+                    stream.clone(),
+                    PktMessage::deserialize(pkt),
+                ))
+            }
+            PktType::CHANGEROOM => {
+                let mut buffer = vec![0; 2];
+
+                let packet = Packet::read_into(stream, packet_type, &mut buffer)?;
+
+                Ok(Protocol::ChangeRoom(
+                    stream.clone(),
+                    PktChangeRoom::deserialize(packet),
+                ))
+            }
+            PktType::FIGHT => Ok(Protocol::Fight(stream.clone(), PktFight::default())),
+            PktType::PVPFIGHT => {
+                let mut buffer = vec![0; 32];
+
+                let packet = Packet::read_into(stream, packet_type, &mut buffer)?;
+
+                Ok(Protocol::PVPFight(
+                    stream.clone(),
+                    PktPVPFight::deserialize(packet),
+                ))
+            }
+            PktType::LOOT => {
+                let mut buffer = vec![0; 32];
+
+                let packet = Packet::read_into(stream, packet_type, &mut buffer)?;
+
+                Ok(Protocol::Loot(stream.clone(), PktLoot::deserialize(packet)))
+            }
+            PktType::START => Ok(Protocol::Start(stream.clone(), PktStart::default())),
+            PktType::ERROR => {
+                let mut buffer = vec![0; 3];
+
+                let packet = Packet::read_extended(stream, packet_type, &mut buffer, (1, 2))?;
+
+                Ok(Protocol::Error(
+                    stream.clone(),
+                    PktError::deserialize(packet),
+                ))
+            }
+            PktType::ACCEPT => {
+                let mut buffer = vec![0; 1];
+
+                let packet = Packet::read_into(stream, packet_type, &mut buffer)?;
+
+                Ok(Protocol::Accept(
+                    stream.clone(),
+                    PktAccept::deserialize(packet),
+                ))
+            }
+            PktType::ROOM => {
+                let mut buffer = vec![0; 36];
+
+                let packet = Packet::read_extended(stream, packet_type, &mut buffer, (34, 35))?;
+
+                Ok(Protocol::Room(stream.clone(), PktRoom::deserialize(packet)))
+            }
+            PktType::CHARACTER => {
+                let mut buffer = vec![0; 47];
+
+                let packet = Packet::read_extended(stream, packet_type, &mut buffer, (45, 46))?;
+
+                Ok(Protocol::Character(
+                    stream.clone(),
+                    PktCharacter::deserialize(packet),
+                ))
+            }
+            PktType::GAME => {
+                let mut buffer = vec![0; 6];
+
+                let packet = Packet::read_extended(stream, packet_type, &mut buffer, (4, 5))?;
+
+                Ok(Protocol::Game(stream.clone(), PktGame::deserialize(packet)))
+            }
+            PktType::LEAVE => Ok(Protocol::Leave(stream.clone(), PktLeave::default())),
+            PktType::CONNECTION => {
+                let mut buffer = vec![0; 36];
+
+                let packet = Packet::read_extended(stream, packet_type, &mut buffer, (34, 35))?;
+
+                Ok(Protocol::Connection(
+                    stream.clone(),
+                    PktConnection::deserialize(packet),
+                ))
+            }
+            PktType::VERSION => {
+                let mut buffer = vec![0; 4];
+
+                let packet = Packet::read_extended(stream, packet_type, &mut buffer, (2, 3))?;
+
+                Ok(Protocol::Version(
+                    stream.clone(),
+                    PktVersion::deserialize(packet),
+                ))
+            }
+            PktType::DEFAULT => Err(Error::new(ErrorKind::Unsupported, "Invalid packet type")),
+        }
     }
 }
