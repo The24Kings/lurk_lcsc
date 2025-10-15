@@ -8,7 +8,7 @@ use crate::{Packet, Parser};
 #[derive(Serialize)]
 pub struct PktLoot {
     /// The type of the packet message.
-    pub message_type: PktType,
+    pub packet_type: PktType,
     /// The name of the loot target.
     pub target_name: Box<str>,
 }
@@ -26,7 +26,7 @@ impl std::fmt::Display for PktLoot {
 impl Parser<'_> for PktLoot {
     fn serialize<W: Write>(self, writer: &mut W) -> Result<(), std::io::Error> {
         // Package into a byte array
-        let mut packet: Vec<u8> = vec![self.message_type.into()];
+        let mut packet: Vec<u8> = vec![self.packet_type.into()];
 
         let mut target_name_bytes = self.target_name.as_bytes().to_vec();
         target_name_bytes.resize(32, 0x00); // Pad the name to 32 bytes
@@ -41,13 +41,13 @@ impl Parser<'_> for PktLoot {
     }
 
     fn deserialize(packet: Packet) -> Self {
-        let message_type = packet.message_type;
+        let message_type = packet.packet_type;
         let target_name = String::from_utf8_lossy(&packet.body[0..32])
             .trim_end_matches('\0')
             .into();
 
         Self {
-            message_type,
+            packet_type: message_type,
             target_name,
         }
     }

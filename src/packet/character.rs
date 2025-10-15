@@ -24,7 +24,7 @@ pub struct PktCharacter {
     /// The TCP stream associated with the author of the packet, if available.
     pub author: Option<Arc<TcpStream>>,
     /// The type of message for the `CHARACTER` packet. Default is 10.
-    pub message_type: PktType,
+    pub packet_type: PktType,
     /// The name of the character, up to 32 bytes.
     pub name: Arc<str>,
     /// The character's flags, represented as a bitfield.
@@ -74,7 +74,7 @@ impl std::fmt::Display for PktCharacter {
 impl Parser<'_> for PktCharacter {
     fn serialize<W: Write>(self, writer: &mut W) -> Result<(), std::io::Error> {
         // Package into a byte array
-        let mut packet: Vec<u8> = vec![self.message_type.into()];
+        let mut packet: Vec<u8> = vec![self.packet_type.into()];
 
         // Serialize the character name
         let mut name_bytes = self.name.as_bytes().to_vec();
@@ -120,7 +120,7 @@ impl Parser<'_> for PktCharacter {
 
         Self {
             author: Some(packet.stream.clone()),
-            message_type: packet.message_type,
+            packet_type: packet.packet_type,
             name: Arc::from(name),
             flags,
             attack,

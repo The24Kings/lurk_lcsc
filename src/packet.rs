@@ -43,8 +43,7 @@ pub mod version;
 /// Trait for serializing and deserializing packets.
 ///
 /// ```no_run
-/// use lurk_lcsc::packet::{Packet, Parser};
-/// use lurk_lcsc::pkt_type::PktType;
+/// use lurk_lcsc::{Packet, Parser, PktType};
 /// use serde::Serialize;
 /// use std::io::Write;
 ///
@@ -72,7 +71,7 @@ pub mod version;
 ///     }
 ///
 ///     fn deserialize(packet: Packet) -> Self {
-///         let message_type = packet.message_type;
+///         let message_type = packet.packet_type;
 ///         let target_name = String::from_utf8_lossy(&packet.body[0..32])
 ///             .trim_end_matches('\0')
 ///             .into();
@@ -135,25 +134,25 @@ pub trait Parser<'a>: Sized + 'a {
 /// use lurk_lcsc::packet::Packet;
 ///
 /// let stream = Arc::new(TcpStream::connect("127.0.0.1:8080").unwrap());
-/// let message_type = PktType::DEFAULT; // Replace with an actual variant
+/// let packet_type = PktType::DEFAULT; // Replace with an actual variant
 /// let body = &[0u8; 32];
-/// let packet = Packet::new(&stream, message_type, body);
+/// let packet = Packet::new(&stream, packet_type, body);
 /// ```
 pub struct Packet<'a> {
     /// Reference to the TCP stream associated with this packet.
     pub stream: &'a Arc<TcpStream>,
     /// The type of the packet message.
-    pub message_type: PktType,
+    pub packet_type: PktType,
     /// The body of the packet containing the raw bytes.
     pub body: &'a [u8],
 }
 
 impl<'a> Packet<'a> {
     /// Creates a new `Packet` instance from the given TCP stream, message type, and byte slice.
-    pub fn new(stream: &'a Arc<TcpStream>, message_type: PktType, bytes: &'a [u8]) -> Self {
+    pub fn new(stream: &'a Arc<TcpStream>, packet_type: PktType, bytes: &'a [u8]) -> Self {
         Packet {
             stream,
-            message_type,
+            packet_type,
             body: &bytes[0..],
         }
     }
@@ -162,7 +161,7 @@ impl<'a> Packet<'a> {
     /// This function reads the packet body based on the provided buffer length.
     pub fn read_into<'b>(
         stream: &'b Arc<TcpStream>,
-        message_type: PktType,
+        packet_type: PktType,
         buffer: &'b mut [u8],
     ) -> Result<Packet<'b>, std::io::Error> {
         // Read the remaining bytes for the packet
@@ -177,7 +176,7 @@ impl<'a> Packet<'a> {
         debug!("[DEBUG] Packet body:\n{}", PCap::build(buffer.to_vec()));
 
         // Create a new packet with the read bytes
-        let packet = Packet::new(stream, message_type, buffer);
+        let packet = Packet::new(stream, packet_type, buffer);
 
         Ok(packet)
     }
@@ -187,7 +186,7 @@ impl<'a> Packet<'a> {
     /// based on the provided index.
     pub fn read_extended<'b>(
         stream: &'b Arc<TcpStream>,
-        message_type: PktType,
+        packet_type: PktType,
         buffer: &'b mut Vec<u8>,
         index: (usize, usize),
     ) -> Result<Packet<'b>, std::io::Error> {
@@ -229,7 +228,7 @@ impl<'a> Packet<'a> {
         // Extend the buffer with the description
         buffer.extend_from_slice(&desc);
 
-        let packet = Packet::new(stream, message_type, buffer);
+        let packet = Packet::new(stream, packet_type, buffer);
 
         Ok(packet)
     }

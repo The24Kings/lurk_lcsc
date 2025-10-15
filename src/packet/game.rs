@@ -14,7 +14,7 @@ use crate::{Packet, Parser};
 /// This message will be sent upon connecting to the server, and not re-sent.
 pub struct PktGame {
     /// The type of message for the `GAME` packet. Defaults to 11.
-    pub message_type: PktType,
+    pub packet_type: PktType,
     /// The initial points available to a new character.
     pub initial_points: u16,
     /// The maximum stat limit for any character.
@@ -38,7 +38,7 @@ impl std::fmt::Display for PktGame {
 impl Parser<'_> for PktGame {
     fn serialize<W: Write>(self, writer: &mut W) -> Result<(), std::io::Error> {
         // Package into a byte array
-        let mut packet: Vec<u8> = vec![self.message_type.into()];
+        let mut packet: Vec<u8> = vec![self.packet_type.into()];
 
         packet.extend(self.initial_points.to_le_bytes());
         packet.extend(self.stat_limit.to_le_bytes());
@@ -60,7 +60,7 @@ impl Parser<'_> for PktGame {
         let description = String::from_utf8_lossy(&packet.body[6..]).into();
 
         Self {
-            message_type: packet.message_type,
+            packet_type: packet.packet_type,
             initial_points,
             stat_limit,
             description_len,

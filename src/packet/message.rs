@@ -12,7 +12,7 @@ use crate::{Packet, Parser};
 /// - If using this to send game information, the server should mark the message as narration.
 pub struct PktMessage {
     /// The type of message for the `MESSAGE` packet. Defaults to 1.
-    pub message_type: PktType,
+    pub packet_type: PktType,
     /// The length of the message.
     pub message_len: u16,
     /// The recipient of the message, up to 32 bytes.
@@ -31,7 +31,7 @@ impl PktMessage {
     /// This is used for system messages, such as "You have been disconnected" or "Welcome to the game".
     pub fn server(recipient: &str, message: &str) -> Self {
         Self {
-            message_type: PktType::MESSAGE,
+            packet_type: PktType::MESSAGE,
             message_len: message.len() as u16,
             recipient: Box::from(recipient),
             sender: Box::from("Server"),
@@ -45,7 +45,7 @@ impl PktMessage {
     /// This is used for room descriptions and other narrative messages.
     pub fn narrator(recipient: &str, message: &str) -> Self {
         Self {
-            message_type: PktType::MESSAGE,
+            packet_type: PktType::MESSAGE,
             message_len: message.len() as u16,
             recipient: Box::from(recipient),
             sender: Box::from("Narrator"),
@@ -69,7 +69,7 @@ impl std::fmt::Display for PktMessage {
 impl Parser<'_> for PktMessage {
     fn serialize<W: Write>(self, writer: &mut W) -> Result<(), std::io::Error> {
         // Package into a byte array
-        let mut packet: Vec<u8> = vec![self.message_type.into()];
+        let mut packet: Vec<u8> = vec![self.packet_type.into()];
 
         packet.extend(self.message_len.to_le_bytes());
 
@@ -127,7 +127,7 @@ impl Parser<'_> for PktMessage {
         let message = String::from_utf8_lossy(&packet.body[66..]).into();
 
         Self {
-            message_type: packet.message_type,
+            packet_type: packet.packet_type,
             message_len,
             recipient,
             sender,

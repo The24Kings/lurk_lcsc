@@ -13,13 +13,13 @@ use crate::{Packet, Parser};
 /// - Generally, the server will reply with a `PktType::ROOM`, a `PktType::CHARACTER` message showing the updated room, and a `PktType::CHARACTER` message for each player in the initial room of the game.
 pub struct PktStart {
     /// The type of message for the `START` packet. Defaults to 6.
-    pub message_type: PktType,
+    pub packet_type: PktType,
 }
 
 impl Default for PktStart {
     fn default() -> Self {
         PktStart {
-            message_type: PktType::START,
+            packet_type: PktType::START,
         }
     }
 }
@@ -37,7 +37,7 @@ impl std::fmt::Display for PktStart {
 impl Parser<'_> for PktStart {
     fn serialize<W: Write>(self, writer: &mut W) -> Result<(), std::io::Error> {
         // Package into a byte array
-        let packet: Vec<u8> = vec![self.message_type.into()];
+        let packet: Vec<u8> = vec![self.packet_type.into()];
 
         // Write the packet to the buffer
         writer
@@ -48,7 +48,7 @@ impl Parser<'_> for PktStart {
     }
     fn deserialize(packet: Packet) -> Self {
         Self {
-            message_type: packet.message_type,
+            packet_type: packet.packet_type,
         }
     }
 }

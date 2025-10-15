@@ -11,7 +11,7 @@ use crate::{Packet, Parser};
 #[derive(Serialize)]
 pub struct PktChangeRoom {
     /// The type of message for the `CHANGEROOM` packet. Default is 2.
-    pub message_type: PktType,
+    pub packet_type: PktType,
     /// Number of the room to change to. The server will send an error if an inappropriate choice is made.
     pub room_number: u16,
 }
@@ -30,7 +30,7 @@ impl std::fmt::Display for PktChangeRoom {
 impl Parser<'_> for PktChangeRoom {
     fn serialize<W: Write>(self, writer: &mut W) -> Result<(), std::io::Error> {
         // Package into a byte array
-        let mut packet: Vec<u8> = vec![self.message_type.into()];
+        let mut packet: Vec<u8> = vec![self.packet_type.into()];
 
         packet.extend(self.room_number.to_le_bytes());
 
@@ -47,7 +47,7 @@ impl Parser<'_> for PktChangeRoom {
 
         // Implement deserialization logic here
         Self {
-            message_type: packet.message_type,
+            packet_type: packet.packet_type,
             room_number,
         }
     }

@@ -11,7 +11,7 @@ use crate::{Packet, Parser};
 #[derive(Serialize)]
 pub struct PktAccept {
     /// The type of message for the `ACCEPT` packet. Default is 8.
-    pub message_type: PktType,
+    pub packet_type: PktType,
     /// The type of action accepted.
     pub accept_type: u8,
 }
@@ -20,7 +20,7 @@ impl PktAccept {
     /// Creates a new `PktAccept` with the specified accept type.
     pub fn new(accept_type: PktType) -> Self {
         Self {
-            message_type: PktType::ACCEPT,
+            packet_type: PktType::ACCEPT,
             accept_type: accept_type.into(),
         }
     }
@@ -42,7 +42,7 @@ impl Parser<'_> for PktAccept {
         // Package into a byte array
         let mut packet: Vec<u8> = Vec::new();
 
-        packet.push(self.message_type.into());
+        packet.push(self.packet_type.into());
         packet.extend(self.accept_type.to_le_bytes());
 
         // Write the packet to the buffer
@@ -55,7 +55,7 @@ impl Parser<'_> for PktAccept {
 
     fn deserialize(packet: Packet) -> Self {
         Self {
-            message_type: packet.message_type,
+            packet_type: packet.packet_type,
             accept_type: packet.body[0],
         }
     }
