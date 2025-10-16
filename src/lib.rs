@@ -14,7 +14,7 @@
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
 // Lurk types in rustdoc of other crates get linked to here.
-#![doc(html_root_url = "https://docs.rs/lurk_lcsc/2.3.7")]
+#![doc(html_root_url = "https://docs.rs/lurk_lcsc/2.3.8")]
 // Show which crate feature enables conditionally compiled APIs in documentation.
 #![cfg_attr(docsrs, feature(doc_cfg, rustdoc_internals))]
 #![cfg_attr(docsrs, allow(internal_features))]
@@ -53,7 +53,6 @@
     clippy::too_many_lines,
     // preference
     clippy::doc_markdown,
-    clippy::elidable_lifetime_names,
     clippy::needless_lifetimes,
     clippy::unseparated_literal_suffix,
     // false positive
@@ -79,7 +78,7 @@ pub use packet::{
 pub use pkt_type::PktType;
 pub use protocol::Protocol;
 
-/// Types and utilities for character flags.
+/// Structures and utilities for character flags.
 pub mod flags;
 /// Error types for the Lurk protocol.
 pub mod lurk_error;
@@ -90,7 +89,7 @@ pub mod packet;
 pub mod pcap;
 /// Packet type definitions.
 pub mod pkt_type;
-/// Protocol definitions and utilities.
+/// Protocol definitions.
 pub mod protocol;
 
 #[cfg(feature = "tracing")]

@@ -189,12 +189,8 @@ impl Protocol {
     /// ```
     pub fn recv(stream: &Arc<TcpStream>) -> Result<Protocol, std::io::Error> {
         let mut buffer = [0; 1];
-        let bytes_read = stream.as_ref().read(&mut buffer)?;
-        let packet_type = buffer[0].into();
-
-        if bytes_read != 1 {
-            return Err(Error::new(ErrorKind::UnexpectedEof, "Connection closed"));
-        }
+        stream.as_ref().read_exact(&mut buffer)?;
+        let packet_type = PktType::from(&buffer);
 
         #[cfg(feature = "tracing")]
         info!("[PROTOCOL] Read packet type: {}", packet_type);
