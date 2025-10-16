@@ -1,7 +1,7 @@
 use serde::Serialize;
 
 /// Represents possible error codes for the Lurk protocol.
-#[derive(Default, Serialize, PartialEq, Eq, Hash, Debug)]
+#[derive(Default, Debug, Serialize, Clone, Copy, PartialEq, Eq, Hash)]
 #[repr(u8)]
 pub enum LurkError {
     #[default]

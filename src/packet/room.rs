@@ -13,7 +13,7 @@ use crate::{Packet, Parser};
 /// - Monsters and players in the room should be listed using a series of `PktType::CHARACTER` messages.
 pub struct PktRoom {
     /// The type of message for the `ROOM` packet. Defaults to 9
-    pub message_type: PktType,
+    pub packet_type: PktType,
     /// The room number the player is currently in. This is the same as the room number used in `PktType::CHANGEROOM`.
     pub room_number: u16,
     /// The name of the room, up to 32 bytes.
@@ -37,7 +37,7 @@ impl std::fmt::Display for PktRoom {
 impl Parser<'_> for PktRoom {
     fn serialize<W: Write>(self, writer: &mut W) -> Result<(), std::io::Error> {
         // Package into a byte array
-        let mut packet: Vec<u8> = vec![self.message_type.into()];
+        let mut packet: Vec<u8> = vec![self.packet_type.into()];
 
         packet.extend(self.room_number.to_le_bytes());
 
@@ -49,18 +49,15 @@ impl Parser<'_> for PktRoom {
         packet.extend(self.description.as_bytes());
 
         // Write the packet to the buffer
-        writer.write_all(&packet).map_err(|_| {
-            std::io::Error::new(
-                std::io::ErrorKind::Other,
-                "Failed to write packet to buffer",
-            )
-        })?;
+        writer
+            .write_all(&packet)
+            .map_err(|_| std::io::Error::other("Failed to write packet to buffer"))?;
 
         Ok(())
     }
 
-    fn deserialize(packet: Packet) -> Result<Self, std::io::Error> {
-        let message_type = packet.message_type;
+    fn deserialize(packet: Packet) -> Self {
+        let message_type = packet.packet_type;
         let room_number = u16::from_le_bytes([packet.body[0], packet.body[1]]);
         let room_name = String::from_utf8_lossy(&packet.body[2..34])
             .trim_end_matches('\0')
@@ -68,12 +65,12 @@ impl Parser<'_> for PktRoom {
         let description_len = u16::from_le_bytes([packet.body[34], packet.body[35]]);
         let description = String::from_utf8_lossy(&packet.body[36..]).into();
 
-        Ok(PktRoom {
-            message_type,
+        Self {
+            packet_type: message_type,
             room_number,
             room_name,
             description_len,
             description,
-        })
+        }
     }
 }

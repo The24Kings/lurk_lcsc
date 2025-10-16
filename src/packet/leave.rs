@@ -8,13 +8,13 @@ use crate::{Packet, Parser};
 /// Used by the client to leave the game. This is a graceful way to disconnect. The server never terminates, so it doesn't send `PktType::LEAVE`.
 pub struct PktLeave {
     /// The type of message for the `LEAVE` packet. Defaults to 12.
-    pub message_type: PktType,
+    pub packet_type: PktType,
 }
 
 impl Default for PktLeave {
     fn default() -> Self {
         Self {
-            message_type: PktType::LEAVE,
+            packet_type: PktType::LEAVE,
         }
     }
 }
@@ -32,22 +32,19 @@ impl std::fmt::Display for PktLeave {
 impl Parser<'_> for PktLeave {
     fn serialize<W: Write>(self, writer: &mut W) -> Result<(), std::io::Error> {
         // Package into a byte array
-        let packet: Vec<u8> = vec![self.message_type.into()];
+        let packet: Vec<u8> = vec![self.packet_type.into()];
 
         // Write the packet to the buffer
-        writer.write_all(&packet).map_err(|_| {
-            std::io::Error::new(
-                std::io::ErrorKind::Other,
-                "Failed to write packet to buffer",
-            )
-        })?;
+        writer
+            .write_all(&packet)
+            .map_err(|_| std::io::Error::other("Failed to write packet to buffer"))?;
 
         Ok(())
     }
 
-    fn deserialize(packet: Packet) -> Result<Self, std::io::Error> {
-        Ok(PktLeave {
-            message_type: packet.message_type,
-        })
+    fn deserialize(packet: Packet) -> Self {
+        Self {
+            packet_type: packet.packet_type,
+        }
     }
 }

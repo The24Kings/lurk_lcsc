@@ -2,7 +2,7 @@ use bitflags::bitflags;
 use serde::Serialize;
 
 bitflags! {
-    #[derive(Clone, Copy, PartialEq, Eq, Hash, Serialize)]
+    #[derive(Default, Debug, Serialize, Clone, Copy, PartialEq, Eq, Hash)]
     /// Flags representing the state of a character in the game.
     ///
     /// - When a client uses `PktType::CHARACTER` to describe a new player, the server may (should) ignore the client's initial specification for health, gold, and room.

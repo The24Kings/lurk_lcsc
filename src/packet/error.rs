@@ -13,7 +13,7 @@ use crate::{Packet, Parser};
 #[derive(Serialize)]
 pub struct PktError {
     /// The type of message for the `ERROR` packet. Defaults to 7.
-    pub message_type: PktType,
+    pub packet_type: PktType,
     /// The specific error code.
     pub error: LurkError,
     /// The length of the error message.
@@ -29,7 +29,7 @@ impl PktError {
         error!("[SERVER] {}: {}", error, message);
 
         Self {
-            message_type: PktType::ERROR,
+            packet_type: PktType::ERROR,
             error,
             message_len: message.len() as u16,
             message: Box::from(message),
@@ -50,36 +50,33 @@ impl std::fmt::Display for PktError {
 impl Parser<'_> for PktError {
     fn serialize<W: Write>(self, writer: &mut W) -> Result<(), std::io::Error> {
         // Package into a byte array
-        let mut packet: Vec<u8> = vec![self.message_type.into()];
+        let mut packet: Vec<u8> = vec![self.packet_type.into()];
 
         packet.push(self.error.into());
         packet.extend(self.message_len.to_le_bytes());
         packet.extend(self.message.as_bytes());
 
         // Write the packet to the buffer
-        writer.write_all(&packet).map_err(|_| {
-            std::io::Error::new(
-                std::io::ErrorKind::Other,
-                "Failed to write packet to buffer",
-            )
-        })?;
+        writer
+            .write_all(&packet)
+            .map_err(|_| std::io::Error::other("Failed to write packet to buffer"))?;
 
         Ok(())
     }
 
-    fn deserialize(packet: Packet) -> Result<Self, std::io::Error> {
-        let message_type = packet.message_type;
+    fn deserialize(packet: Packet) -> Self {
+        let message_type = packet.packet_type;
         let error = LurkError::from(packet.body[0]);
         let message_len = u16::from_le_bytes([packet.body[1], packet.body[2]]);
         let message = String::from_utf8_lossy(&packet.body[3..])
             .trim_end_matches('\0')
             .into();
 
-        Ok(PktError {
-            message_type,
+        Self {
+            packet_type: message_type,
             error,
             message_len,
             message,
-        })
+        }
     }
 }

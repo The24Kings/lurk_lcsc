@@ -17,7 +17,7 @@ use crate::{Packet, Parser};
 /// `Servers line the walls, softly lighting the room in a cacophony of red, green, blue, and yellow flashes`.
 pub struct PktConnection {
     /// The type of message for the `CONNECTION` packet. Defaults to 13.
-    pub message_type: PktType,
+    pub packet_type: PktType,
     /// Room number. This is the same room number used for `PktType::CHANGEROOM`
     pub room_number: u16,
     /// The name of the room this connection leads to, up to 32 bytes.
@@ -42,7 +42,7 @@ impl std::fmt::Display for PktConnection {
 impl Parser<'_> for PktConnection {
     fn serialize<W: Write>(self, writer: &mut W) -> Result<(), std::io::Error> {
         // Package into a byte array
-        let mut packet: Vec<u8> = vec![self.message_type.into()];
+        let mut packet: Vec<u8> = vec![self.packet_type.into()];
 
         packet.extend(self.room_number.to_le_bytes());
 
@@ -54,18 +54,15 @@ impl Parser<'_> for PktConnection {
         packet.extend(self.description.as_bytes());
 
         // Write the packet to the buffer
-        writer.write_all(&packet).map_err(|_| {
-            std::io::Error::new(
-                std::io::ErrorKind::Other,
-                "Failed to write packet to buffer",
-            )
-        })?;
+        writer
+            .write_all(&packet)
+            .map_err(|_| std::io::Error::other("Failed to write packet to buffer"))?;
 
         Ok(())
     }
 
-    fn deserialize(packet: Packet) -> Result<Self, std::io::Error> {
-        let message_type = packet.message_type;
+    fn deserialize(packet: Packet) -> Self {
+        let message_type = packet.packet_type;
         let room_number = u16::from_le_bytes([packet.body[0], packet.body[1]]);
         let room_name = String::from_utf8_lossy(&packet.body[2..34])
             .trim_end_matches('\0')
@@ -73,12 +70,12 @@ impl Parser<'_> for PktConnection {
         let description_len = u16::from_le_bytes([packet.body[34], packet.body[35]]);
         let description = String::from_utf8_lossy(&packet.body[36..]).into();
 
-        Ok(PktConnection {
-            message_type,
+        Self {
+            packet_type: message_type,
             room_number,
             room_name,
             description_len,
             description,
-        })
+        }
     }
 }

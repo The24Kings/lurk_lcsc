@@ -19,13 +19,13 @@ use crate::{Packet, Parser};
 /// Note that this is not the only way a fight against monsters can be initiated. The server can initiate a fight at any time.
 pub struct PktFight {
     /// The type of message for the `FIGHT` packet. Defaults to 3.
-    pub message_type: PktType,
+    pub packet_type: PktType,
 }
 
 impl Default for PktFight {
     fn default() -> Self {
         Self {
-            message_type: PktType::FIGHT,
+            packet_type: PktType::FIGHT,
         }
     }
 }
@@ -43,22 +43,19 @@ impl std::fmt::Display for PktFight {
 impl Parser<'_> for PktFight {
     fn serialize<W: Write>(self, writer: &mut W) -> Result<(), std::io::Error> {
         // Package into a byte array
-        let packet: Vec<u8> = vec![self.message_type.into()];
+        let packet: Vec<u8> = vec![self.packet_type.into()];
 
         // Write the packet to the buffer
-        writer.write_all(&packet).map_err(|_| {
-            std::io::Error::new(
-                std::io::ErrorKind::Other,
-                "Failed to write packet to buffer",
-            )
-        })?;
+        writer
+            .write_all(&packet)
+            .map_err(|_| std::io::Error::other("Failed to write packet to buffer"))?;
 
         Ok(())
     }
 
-    fn deserialize(packet: Packet) -> Result<Self, std::io::Error> {
-        Ok(PktFight {
-            message_type: packet.message_type,
-        })
+    fn deserialize(packet: Packet) -> Self {
+        Self {
+            packet_type: packet.packet_type,
+        }
     }
 }

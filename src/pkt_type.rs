@@ -1,7 +1,7 @@
 use serde::Serialize;
 
 /// Represents the different types of packets used in the application.
-#[derive(Default, Serialize, Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Default, Debug, Serialize, Clone, Copy, PartialEq, Eq, Hash)]
 #[repr(u8)]
 pub enum PktType {
     #[default]
@@ -57,7 +57,7 @@ impl From<PktType> for u8 {
 
 impl From<u8> for PktType {
     /// Converts a `u8` value into its corresponding `PktType` enum variant.
-    /// # Example
+    ///
     /// ```rust
     /// use lurk_lcsc::pkt_type::PktType;
     ///
@@ -66,6 +66,38 @@ impl From<u8> for PktType {
     /// ```
     fn from(value: u8) -> Self {
         match value {
+            0 => PktType::DEFAULT,
+            1 => PktType::MESSAGE,
+            2 => PktType::CHANGEROOM,
+            3 => PktType::FIGHT,
+            4 => PktType::PVPFIGHT,
+            5 => PktType::LOOT,
+            6 => PktType::START,
+            7 => PktType::ERROR,
+            8 => PktType::ACCEPT,
+            9 => PktType::ROOM,
+            10 => PktType::CHARACTER,
+            11 => PktType::GAME,
+            12 => PktType::LEAVE,
+            13 => PktType::CONNECTION,
+            14 => PktType::VERSION,
+            _ => PktType::DEFAULT,
+        }
+    }
+}
+
+impl From<&[u8; 1]> for PktType {
+    /// Converts a byte slice into its corresponding `PktType` enum variant.
+    ///
+    /// ```rust
+    /// use lurk_lcsc::pkt_type::PktType;
+    ///
+    /// let bytes = [3u8; 1];
+    /// let pkt_type = PktType::from(&bytes);
+    /// assert_eq!(pkt_type, PktType::FIGHT);
+    /// ```
+    fn from(value: &[u8; 1]) -> Self {
+        match value[0] {
             0 => PktType::DEFAULT,
             1 => PktType::MESSAGE,
             2 => PktType::CHANGEROOM,

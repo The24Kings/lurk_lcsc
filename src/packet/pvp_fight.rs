@@ -15,7 +15,7 @@ use crate::{Packet, Parser};
 /// If the server does not support PVP, it should send `LurkError::NOPLAYERCOMBAT` to the client.
 pub struct PktPVPFight {
     /// The type of message for the `PVPFIGHT` packet. Defaults to 4.
-    pub message_type: PktType,
+    pub packet_type: PktType,
     /// The name of the target player, up to 32 bytes.
     pub target_name: String,
 }
@@ -34,31 +34,28 @@ impl std::fmt::Display for PktPVPFight {
 impl Parser<'_> for PktPVPFight {
     fn serialize<W: Write>(self, writer: &mut W) -> Result<(), std::io::Error> {
         // Package into a byte array
-        let mut packet: Vec<u8> = vec![self.message_type.into()];
+        let mut packet: Vec<u8> = vec![self.packet_type.into()];
 
         let mut target_name_bytes = self.target_name.as_bytes().to_vec();
         target_name_bytes.resize(32, 0x00); // Pad the name to 32 bytes
         packet.extend(target_name_bytes);
 
-        // Send the packet to the author
-        writer.write_all(&packet).map_err(|_| {
-            std::io::Error::new(
-                std::io::ErrorKind::Other,
-                "Failed to write packet to buffer",
-            )
-        })?;
+        // Write the packet to the buffer
+        writer
+            .write_all(&packet)
+            .map_err(|_| std::io::Error::other("Failed to write packet to buffer"))?;
 
         Ok(())
     }
-    fn deserialize(packet: Packet) -> Result<Self, std::io::Error> {
-        let message_type = packet.message_type;
+    fn deserialize(packet: Packet) -> Self {
+        let message_type = packet.packet_type;
         let target_name = String::from_utf8_lossy(&packet.body[0..32])
             .trim_end_matches('\0')
             .to_string();
 
-        Ok(PktPVPFight {
-            message_type,
+        Self {
+            packet_type: message_type,
             target_name,
-        })
+        }
     }
 }

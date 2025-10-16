@@ -8,7 +8,7 @@ use crate::{Packet, Parser};
 /// Sent by the server upon initial connection along with `PktType::GAME`.
 pub struct PktVersion {
     /// The type of message for the `VERSION` packet. Defaults to 14.
-    pub message_type: PktType,
+    pub packet_type: PktType,
     /// The major revision number of the server.
     pub major_rev: u8,
     /// The minor revision number of the server.
@@ -16,8 +16,8 @@ pub struct PktVersion {
     /// The length of the extensions field.
     pub extension_len: u16,
     /// The extensions field:
-    /// - 0-1	Length of the first extension, as an unsigned 16-bit integer.
-    /// - 2+	First extension
+    /// - 0-1 Length of the first extension, as an unsigned 16-bit integer.
+    /// - 2+ First extension
     ///
     /// At the end of the first extension, if there are more extensions, the length of the second extension will be found, then the second extension, and so on.
     /// The length of the list of extensions must be the same as `extension_len`.
@@ -39,7 +39,7 @@ impl std::fmt::Display for PktVersion {
 impl Parser<'_> for PktVersion {
     fn serialize<W: Write>(self, writer: &mut W) -> Result<(), std::io::Error> {
         // Package into a byte array
-        let mut packet: Vec<u8> = vec![self.message_type.into()];
+        let mut packet: Vec<u8> = vec![self.packet_type.into()];
 
         packet.extend(self.major_rev.to_le_bytes());
         packet.extend(self.minor_rev.to_le_bytes());
@@ -50,23 +50,20 @@ impl Parser<'_> for PktVersion {
         }
 
         // Write the packet to the buffer
-        writer.write_all(&packet).map_err(|_| {
-            std::io::Error::new(
-                std::io::ErrorKind::Other,
-                "Failed to write packet to buffer",
-            )
-        })?;
+        writer
+            .write_all(&packet)
+            .map_err(|_| std::io::Error::other("Failed to write packet to buffer"))?;
 
         Ok(())
     }
 
-    fn deserialize(packet: Packet) -> Result<Self, std::io::Error> {
-        Ok(PktVersion {
-            message_type: packet.message_type,
+    fn deserialize(packet: Packet) -> Self {
+        Self {
+            packet_type: packet.packet_type,
             major_rev: packet.body[0],
             minor_rev: packet.body[1],
             extension_len: 0,
             extensions: None, // Server currently does not use extensions
-        })
+        }
     }
 }

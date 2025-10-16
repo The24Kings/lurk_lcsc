@@ -13,13 +13,13 @@ use crate::{Packet, Parser};
 /// - Generally, the server will reply with a `PktType::ROOM`, a `PktType::CHARACTER` message showing the updated room, and a `PktType::CHARACTER` message for each player in the initial room of the game.
 pub struct PktStart {
     /// The type of message for the `START` packet. Defaults to 6.
-    pub message_type: PktType,
+    pub packet_type: PktType,
 }
 
 impl Default for PktStart {
     fn default() -> Self {
         PktStart {
-            message_type: PktType::START,
+            packet_type: PktType::START,
         }
     }
 }
@@ -37,21 +37,18 @@ impl std::fmt::Display for PktStart {
 impl Parser<'_> for PktStart {
     fn serialize<W: Write>(self, writer: &mut W) -> Result<(), std::io::Error> {
         // Package into a byte array
-        let packet: Vec<u8> = vec![self.message_type.into()];
+        let packet: Vec<u8> = vec![self.packet_type.into()];
 
-        // Send the packet to the author
-        writer.write_all(&packet).map_err(|_| {
-            std::io::Error::new(
-                std::io::ErrorKind::Other,
-                "Failed to write packet to buffer",
-            )
-        })?;
+        // Write the packet to the buffer
+        writer
+            .write_all(&packet)
+            .map_err(|_| std::io::Error::other("Failed to write packet to buffer"))?;
 
         Ok(())
     }
-    fn deserialize(packet: Packet) -> Result<Self, std::io::Error> {
-        Ok(PktStart {
-            message_type: packet.message_type,
-        })
+    fn deserialize(packet: Packet) -> Self {
+        Self {
+            packet_type: packet.packet_type,
+        }
     }
 }

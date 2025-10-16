@@ -24,7 +24,7 @@ pub struct PktCharacter {
     /// The TCP stream associated with the author of the packet, if available.
     pub author: Option<Arc<TcpStream>>,
     /// The type of message for the `CHARACTER` packet. Default is 10.
-    pub message_type: PktType,
+    pub packet_type: PktType,
     /// The name of the character, up to 32 bytes.
     pub name: Arc<str>,
     /// The character's flags, represented as a bitfield.
@@ -74,7 +74,7 @@ impl std::fmt::Display for PktCharacter {
 impl Parser<'_> for PktCharacter {
     fn serialize<W: Write>(self, writer: &mut W) -> Result<(), std::io::Error> {
         // Package into a byte array
-        let mut packet: Vec<u8> = vec![self.message_type.into()];
+        let mut packet: Vec<u8> = vec![self.packet_type.into()];
 
         // Serialize the character name
         let mut name_bytes = self.name.as_bytes().to_vec();
@@ -96,17 +96,14 @@ impl Parser<'_> for PktCharacter {
         packet.extend(self.description.as_bytes());
 
         // Write the packet to the buffer
-        writer.write_all(&packet).map_err(|_| {
-            std::io::Error::new(
-                std::io::ErrorKind::Other,
-                "Failed to write packet to buffer",
-            )
-        })?;
+        writer
+            .write_all(&packet)
+            .map_err(|_| std::io::Error::other("Failed to write packet to buffer"))?;
 
         Ok(())
     }
 
-    fn deserialize(packet: Packet) -> Result<Self, std::io::Error> {
+    fn deserialize(packet: Packet) -> Self {
         let name = String::from_utf8_lossy(&packet.body[0..32])
             .split('\0')
             .take(1)
@@ -121,9 +118,9 @@ impl Parser<'_> for PktCharacter {
         let description_len = u16::from_le_bytes([packet.body[45], packet.body[46]]);
         let description = String::from_utf8_lossy(&packet.body[47..]).into();
 
-        Ok(PktCharacter {
+        Self {
             author: Some(packet.stream.clone()),
-            message_type: packet.message_type,
+            packet_type: packet.packet_type,
             name: Arc::from(name),
             flags,
             attack,
@@ -134,6 +131,6 @@ impl Parser<'_> for PktCharacter {
             current_room,
             description_len,
             description,
-        })
+        }
     }
 }

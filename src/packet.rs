@@ -43,11 +43,10 @@ pub mod version;
 /// Trait for serializing and deserializing packets.
 ///
 /// ```no_run
+/// use lurk_lcsc::{Packet, Parser, PktType};
 /// use serde::Serialize;
 /// use std::io::Write;
 ///
-/// use lurk_lcsc::pkt_type::PktType;
-/// use lurk_lcsc::packet::{Packet, Parser};
 ///
 /// pub struct PktLoot {
 ///    pub message_type: PktType,
@@ -64,25 +63,23 @@ pub mod version;
 ///         packet.extend(target_name_bytes);
 ///
 ///         // Write the packet to the buffer
-///         writer.write_all(&packet).map_err(|_| {
-///             std::io::Error::new(
-///                 std::io::ErrorKind::Other,
-///                 "Failed to write packet to buffer",
-///             )
-///         })?;
+///         writer
+///             .write_all(&packet)
+///             .map_err(|_| std::io::Error::other("Failed to write packet to buffer"))?;
+///
 ///         Ok(())
 ///     }
 ///
-///     fn deserialize(packet: Packet) -> Result<Self, std::io::Error> {
-///         let message_type = packet.message_type;
+///     fn deserialize(packet: Packet) -> Self {
+///         let message_type = packet.packet_type;
 ///         let target_name = String::from_utf8_lossy(&packet.body[0..32])
 ///             .trim_end_matches('\0')
 ///             .into();
 ///
-///         Ok(PktLoot {
+///         Self {
 ///             message_type,
 ///             target_name,
-///         })
+///         }
 ///     }
 /// }
 /// ```
@@ -93,15 +90,13 @@ pub trait Parser<'a>: Sized + 'a {
     /// Deserializes a Packet into the implementing type.
     ///
     /// ```no_run
+    /// use lurk_lcsc::{Protocol, PktType, PktMessage, Packet, Parser};
+    /// use std::io::{Read, Error, ErrorKind};
+    /// use std::sync::{Arc, mpsc};
     /// use std::net::TcpStream;
-    /// use std::io::Read;
-    /// use std::sync::{Arc, mpsc::channel};
     ///
-    /// use lurk_lcsc::{Protocol, PktType};
-    /// use lurk_lcsc::packet::{Packet, Parser};
     ///
     /// let stream = Arc::new(TcpStream::connect("127.0.0.1:8080").unwrap());
-    /// let (sender, receiver) = channel();
     ///
     /// let mut buffer = [0; 1];
     /// let bytes_read = stream.as_ref().read(&mut buffer).unwrap();
@@ -112,38 +107,22 @@ pub trait Parser<'a>: Sized + 'a {
     /// }
     ///
     /// // Match the type of the packet to the enum Type
-    /// let packet = match packet_type {
+    /// let packet: Result<Protocol, Error> = match packet_type {
     ///     PktType::MESSAGE => {
-    ///         let mut buffer = vec![0; 66];
+    ///        let mut buffer = vec![0; 66];
     ///
-    ///         let packet = Packet::read_extended(&stream, packet_type, &mut buffer, (0, 1)).unwrap();
+    ///        let pkt = Packet::read_extended(&stream, packet_type, &mut buffer, (0, 1)).unwrap();
     ///
-    ///         let object = match Parser::deserialize(packet) {
-    ///             Ok(deserialized) => Protocol::Message(stream.clone(), deserialized),
-    ///             Err(_) => { todo!("Handle deserialization error") },
-    ///         };
-    ///
-    ///         // Send the packet to the sender
-    ///         Some(object)
-    ///     }
+    ///        Ok(Protocol::Message(
+    ///            stream.clone(),
+    ///            PktMessage::deserialize(pkt),
+    ///        ))
+    ///    },
     ///     _ => todo!("Handle other packet types"),
+    ///     PktType::DEFAULT => Err(Error::new(ErrorKind::Unsupported, "Invalid packet type")),
     /// };
-    ///
-    /// // Send the packet to the server thread
-    /// match packet {
-    ///     Some(pkt) => {
-    ///         sender.send(pkt).map_err(|e| {
-    ///             // If the send fails with SendError, it means the server thread has closed
-    ///             std::io::Error::new(
-    ///                 std::io::ErrorKind::BrokenPipe,
-    ///                 format!("Failed to send packet: {}", e),
-    ///             )
-    ///         }).unwrap();
-    ///     }
-    ///     None => todo!("Handle None packet"),
-    /// }
     /// ```
-    fn deserialize(packet: Packet) -> Result<Self, std::io::Error>;
+    fn deserialize(packet: Packet) -> Self;
 }
 
 /// Represents a network packet containing a reference to the TCP stream, packet type, and body.
@@ -155,25 +134,25 @@ pub trait Parser<'a>: Sized + 'a {
 /// use lurk_lcsc::packet::Packet;
 ///
 /// let stream = Arc::new(TcpStream::connect("127.0.0.1:8080").unwrap());
-/// let message_type = PktType::DEFAULT; // Replace with an actual variant
+/// let packet_type = PktType::DEFAULT; // Replace with an actual variant
 /// let body = &[0u8; 32];
-/// let packet = Packet::new(&stream, message_type, body);
+/// let packet = Packet::new(&stream, packet_type, body);
 /// ```
 pub struct Packet<'a> {
     /// Reference to the TCP stream associated with this packet.
     pub stream: &'a Arc<TcpStream>,
     /// The type of the packet message.
-    pub message_type: PktType,
+    pub packet_type: PktType,
     /// The body of the packet containing the raw bytes.
     pub body: &'a [u8],
 }
 
 impl<'a> Packet<'a> {
     /// Creates a new `Packet` instance from the given TCP stream, message type, and byte slice.
-    pub fn new(stream: &'a Arc<TcpStream>, message_type: PktType, bytes: &'a [u8]) -> Self {
+    pub fn new(stream: &'a Arc<TcpStream>, packet_type: PktType, bytes: &'a [u8]) -> Self {
         Packet {
             stream,
-            message_type,
+            packet_type,
             body: &bytes[0..],
         }
     }
@@ -182,7 +161,7 @@ impl<'a> Packet<'a> {
     /// This function reads the packet body based on the provided buffer length.
     pub fn read_into<'b>(
         stream: &'b Arc<TcpStream>,
-        message_type: PktType,
+        packet_type: PktType,
         buffer: &'b mut [u8],
     ) -> Result<Packet<'b>, std::io::Error> {
         // Read the remaining bytes for the packet
@@ -197,7 +176,7 @@ impl<'a> Packet<'a> {
         debug!("[DEBUG] Packet body:\n{}", PCap::build(buffer.to_vec()));
 
         // Create a new packet with the read bytes
-        let packet = Packet::new(stream, message_type, buffer);
+        let packet = Packet::new(stream, packet_type, buffer);
 
         Ok(packet)
     }
@@ -207,7 +186,7 @@ impl<'a> Packet<'a> {
     /// based on the provided index.
     pub fn read_extended<'b>(
         stream: &'b Arc<TcpStream>,
-        message_type: PktType,
+        packet_type: PktType,
         buffer: &'b mut Vec<u8>,
         index: (usize, usize),
     ) -> Result<Packet<'b>, std::io::Error> {
@@ -249,7 +228,7 @@ impl<'a> Packet<'a> {
         // Extend the buffer with the description
         buffer.extend_from_slice(&desc);
 
-        let packet = Packet::new(stream, message_type, buffer);
+        let packet = Packet::new(stream, packet_type, buffer);
 
         Ok(packet)
     }
