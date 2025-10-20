@@ -9,15 +9,15 @@ bitflags! {
     /// - The monster flag is used when describing monsters found in the game rather than other human players.
     pub struct CharacterFlags: u8 {
         /// The character is alive.
-        const ALIVE = 0b10000000;
+        const ALIVE = 0b1000_0000;
         /// The character will automatically join battles in the room they are in.
-        const BATTLE = 0b01000000;
+        const BATTLE = 0b0100_0000;
         /// The character is a monster.
-        const MONSTER = 0b00100000;
+        const MONSTER = 0b0010_0000;
         /// The character has started.
-        const STARTED = 0b00010000;
+        const STARTED = 0b0001_0000;
         /// The character is ready.
-        const READY = 0b00001000;
+        const READY = 0b0000_1000;
     }
 }
 
