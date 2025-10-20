@@ -18,10 +18,30 @@ pub struct PktStart {
 
 impl Default for PktStart {
     fn default() -> Self {
-        PktStart {
+        Self {
             packet_type: PktType::START,
         }
     }
+}
+
+#[macro_export]
+/// Send `PktStart` over `TcpStream` to connected user
+///
+/// ```no_run
+/// use lurk_lcsc::{Protocol, PktStart, LurkError, send_start};
+/// use std::sync::Arc;
+/// use std::net::TcpStream;
+///
+/// let stream = Arc::new(TcpStream::connect("127.0.0.1:8080").unwrap());
+///
+/// send_start!(stream.clone(), PktStart::default())
+/// ```
+macro_rules! send_start {
+    ($stream:expr, $pkt_fight:expr) => {
+        if let Err(e) = $crate::Protocol::Start($stream, $pkt_fight).send() {
+            ::tracing::error!("Failed to send start packet: {}", e);
+        }
+    };
 }
 
 impl std::fmt::Display for PktStart {
@@ -46,6 +66,7 @@ impl Parser<'_> for PktStart {
 
         Ok(())
     }
+
     fn deserialize(packet: Packet) -> Self {
         Self {
             packet_type: packet.packet_type,

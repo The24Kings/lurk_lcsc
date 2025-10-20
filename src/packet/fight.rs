@@ -30,6 +30,26 @@ impl Default for PktFight {
     }
 }
 
+#[macro_export]
+/// Send `PktFight` over `TcpStream` to connected user
+///
+/// ```no_run
+/// use lurk_lcsc::{Protocol, PktFight, LurkError, send_fight};
+/// use std::sync::Arc;
+/// use std::net::TcpStream;
+///
+/// let stream = Arc::new(TcpStream::connect("127.0.0.1:8080").unwrap());
+///
+/// send_fight!(stream.clone(), PktFight::default())
+/// ```
+macro_rules! send_fight {
+    ($stream:expr, $pkt_fight:expr) => {
+        if let Err(e) = $crate::Protocol::Fight($stream, $pkt_fight).send() {
+            ::tracing::error!("Failed to send fight packet: {}", e);
+        }
+    };
+}
+
 impl std::fmt::Display for PktFight {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(

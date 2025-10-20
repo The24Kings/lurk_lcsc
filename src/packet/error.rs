@@ -26,7 +26,7 @@ impl PktError {
     /// Create a new `PktError` with the specified error code and message.
     pub fn new(error: LurkError, message: &str) -> Self {
         #[cfg(feature = "tracing")]
-        error!("[SERVER] {}: {}", error, message);
+        error!("{}: {}", error, message);
 
         Self {
             packet_type: PktType::ERROR,
@@ -35,6 +35,26 @@ impl PktError {
             message: Box::from(message),
         }
     }
+}
+
+#[macro_export]
+/// Send `PktError` over `TcpStream` to connected user
+///
+/// ```no_run
+/// use lurk_lcsc::{Protocol, PktError, LurkError, send_error};
+/// use std::sync::Arc;
+/// use std::net::TcpStream;
+///
+/// let stream = Arc::new(TcpStream::connect("127.0.0.1:8080").unwrap());
+///
+/// send_error!(stream.clone(), PktError::new(LurkError::NOTREADY, "Start the game first!"))
+/// ```
+macro_rules! send_error {
+    ($stream:expr, $pkt_error:expr) => {
+        if let Err(e) = $crate::Protocol::Error($stream, $pkt_error).send() {
+            ::tracing::error!("Failed to send error packet: {}", e);
+        }
+    };
 }
 
 impl std::fmt::Display for PktError {

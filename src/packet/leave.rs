@@ -19,6 +19,26 @@ impl Default for PktLeave {
     }
 }
 
+#[macro_export]
+/// Send `PktLeave` over `TcpStream` to connected user
+///
+/// ```no_run
+/// use lurk_lcsc::{Protocol, PktLeave, LurkError, send_leave};
+/// use std::sync::Arc;
+/// use std::net::TcpStream;
+///
+/// let stream = Arc::new(TcpStream::connect("127.0.0.1:8080").unwrap());
+///
+/// send_leave!(stream.clone(), PktLeave::default())
+/// ```
+macro_rules! send_leave {
+    ($stream:expr, $pkt_leave:expr) => {
+        if let Err(e) = $crate::Protocol::Leave($stream, $pkt_leave).send() {
+            ::tracing::error!("Failed to send leave packet: {}", e);
+        }
+    };
+}
+
 impl std::fmt::Display for PktLeave {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(

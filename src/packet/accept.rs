@@ -26,6 +26,26 @@ impl PktAccept {
     }
 }
 
+#[macro_export]
+/// Send `PktAccept` over `TcpStream` to connected user
+///
+/// ```no_run
+/// use lurk_lcsc::{Protocol, PktType, send_accept};
+/// use std::sync::Arc;
+/// use std::net::TcpStream;
+///
+/// let stream = Arc::new(TcpStream::connect("127.0.0.1:8080").unwrap());
+///
+/// send_accept!(stream.clone(), PktType::CHARACTER)
+/// ```
+macro_rules! send_accept {
+    ($stream:expr, $p_type:expr) => {
+        if let Err(e) = $crate::Protocol::Accept($stream, $crate::PktAccept::new($p_type)).send() {
+            ::tracing::error!("Failed to send accept packet: {}", e);
+        }
+    };
+}
+
 impl std::fmt::Display for PktAccept {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(

@@ -60,6 +60,43 @@ impl PktCharacter {
     }
 }
 
+#[macro_export]
+/// Send `PktCharacter` over `TcpStream` to connected user
+///
+/// ```no_run
+/// use lurk_lcsc::{
+///     Protocol, PktCharacter, LurkError,
+///     PktType, send_character, CharacterFlags,
+/// };
+/// use std::sync::Arc;
+/// use std::net::TcpStream;
+///
+/// let stream = Arc::new(TcpStream::connect("127.0.0.1:8080").unwrap());
+/// let player = PktCharacter {
+///     author: None,
+///     packet_type: PktType::CHARACTER,
+///     name: "Test".into(),
+///     flags: CharacterFlags::reset(),
+///     attack: 50,
+///     defense: 25,
+///     regen: 25,
+///     health: 100,
+///     gold: 0,
+///     current_room: 0,
+///     description_len: 0,
+///     description: "".into(),
+/// };
+///
+/// send_character!(stream.clone(), player)
+/// ```
+macro_rules! send_character {
+    ($stream:expr, $player:expr) => {
+        if let Err(e) = $crate::Protocol::Character($stream, $player).send() {
+            ::tracing::error!("Failed to send character packet: {}", e);
+        }
+    };
+}
+
 impl std::fmt::Display for PktCharacter {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(
