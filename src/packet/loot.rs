@@ -13,6 +13,36 @@ pub struct PktLoot {
     pub target_name: Box<str>,
 }
 
+impl PktLoot {
+    /// Create a new PktLoot packet from a given name
+    pub fn loot(name: &str) -> Self {
+        Self {
+            packet_type: PktType::LOOT,
+            target_name: Box::from(name),
+        }
+    }
+}
+
+#[macro_export]
+/// Send `PktLoot` over `TcpStream` to connected user
+///
+/// ```no_run
+/// use lurk_lcsc::{Protocol, PktLoot, LurkError, send_loot};
+/// use std::sync::Arc;
+/// use std::net::TcpStream;
+///
+/// let stream = Arc::new(TcpStream::connect("127.0.0.1:8080").unwrap());
+///
+/// send_loot!(stream.clone(), PktLoot::loot("Test"))
+/// ```
+macro_rules! send_loot {
+    ($stream:expr, $pkt_loot:expr) => {
+        if let Err(e) = $crate::Protocol::Loot($stream, $pkt_loot).send() {
+            eprintln!("Failed to send loot packet: {}", e);
+        }
+    };
+}
+
 impl std::fmt::Display for PktLoot {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(

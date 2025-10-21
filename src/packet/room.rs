@@ -24,6 +24,33 @@ pub struct PktRoom {
     pub description: Box<str>,
 }
 
+#[macro_export]
+/// Send `PktRoom` over `TcpStream` to connected user
+///
+/// ```no_run
+/// use lurk_lcsc::{Protocol, PktRoom, PktType, send_room};
+/// use std::sync::Arc;
+/// use std::net::TcpStream;
+///
+/// let stream = Arc::new(TcpStream::connect("127.0.0.1:8080").unwrap());
+/// let room = PktRoom {
+///     packet_type: PktType::ROOM,
+///     room_number: 0,
+///     room_name: "Test".into(),
+///     description_len: 0,
+///     description: "".into(),
+/// };
+///
+/// send_room!(stream.clone(), room)
+/// ```
+macro_rules! send_room {
+    ($stream:expr, $room:expr) => {
+        if let Err(e) = $crate::Protocol::Room($stream, $room).send() {
+            eprintln!("Failed to send room packet: {}", e);
+        }
+    };
+}
+
 impl std::fmt::Display for PktRoom {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(

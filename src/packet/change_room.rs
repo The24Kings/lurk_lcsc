@@ -16,6 +16,43 @@ pub struct PktChangeRoom {
     pub room_number: u16,
 }
 
+impl From<u16> for PktChangeRoom {
+    // Return PktChangeRoom from provided room number
+    fn from(room_number: u16) -> Self {
+        Self {
+            packet_type: PktType::CHANGEROOM,
+            room_number,
+        }
+    }
+}
+
+impl From<PktChangeRoom> for u16 {
+    /// Return room number from PktChangeRoom
+    fn from(packet: PktChangeRoom) -> Self {
+        packet.room_number
+    }
+}
+
+#[macro_export]
+/// Send `PktChangeRoom` over `TcpStream` to connected user
+///
+/// ```no_run
+/// use lurk_lcsc::{Protocol, PktChangeRoom, LurkError, send_change_room};
+/// use std::sync::Arc;
+/// use std::net::TcpStream;
+///
+/// let stream = Arc::new(TcpStream::connect("127.0.0.1:8080").unwrap());
+///
+/// send_change_room!(stream.clone(), PktChangeRoom::from(0))
+/// ```
+macro_rules! send_change_room {
+    ($stream:expr, $pkt_chg_rm:expr) => {
+        if let Err(e) = $crate::Protocol::ChangeRoom($stream, $pkt_chg_rm).send() {
+            eprintln!("Failed to send change room packet: {}", e);
+        }
+    };
+}
+
 impl std::fmt::Display for PktChangeRoom {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(

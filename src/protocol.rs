@@ -7,7 +7,7 @@ use std::sync::Arc;
 #[cfg(feature = "tracing")]
 use crate::pcap::PCap;
 #[cfg(feature = "tracing")]
-use tracing::{debug, info};
+use tracing::{info, trace};
 
 use crate::{
     Packet, Parser, PktAccept, PktChangeRoom, PktCharacter, PktConnection, PktError, PktFight,
@@ -36,15 +36,62 @@ pub enum Protocol {
     Room(Arc<TcpStream>, PktRoom),
     /// Packet containing character information.
     Character(Arc<TcpStream>, PktCharacter),
+    /// ## CRITICAL
     /// Packet containing game information.
+    /// Must be sent __second__ on new connections.
+    ///
+    /// ```no_run
+    /// use lurk_lcsc::{Protocol, PktGame, PktType};
+    /// use std::sync::Arc;
+    /// use std::net::TcpStream;
+    ///
+    /// let stream = Arc::new(TcpStream::connect("127.0.0.1:8080").unwrap());
+    ///
+    /// Protocol::Game(
+    ///     stream.clone(),
+    ///     PktGame {
+    ///         packet_type: PktType::GAME,
+    ///         initial_points: 100,
+    ///         stat_limit: 65535,
+    ///         description_len: 17,
+    ///         description: Box::from("Test Description."),
+    ///     },
+    /// )
+    /// .send()
+    /// .expect("Failed to send game packet");
+    /// ```
     Game(Arc<TcpStream>, PktGame),
     /// Packet containing leave information.
     Leave(Arc<TcpStream>, PktLeave),
     /// Packet containing connection information.
     Connection(Arc<TcpStream>, PktConnection),
+    /// ## CRITICAL
     /// Packet containing version information.
+    /// Must be sent __first__ on new connections.
+    ///
+    /// ```no_run
+    /// use lurk_lcsc::{Protocol, PktVersion, PktType};
+    /// use std::sync::Arc;
+    /// use std::net::TcpStream;
+    ///
+    /// let stream = Arc::new(TcpStream::connect("127.0.0.1:8080").unwrap());
+    ///
+    /// Protocol::Version(
+    ///     stream.clone(),
+    ///     PktVersion {
+    ///         packet_type: PktType::VERSION,
+    ///         major_rev: 2,
+    ///         minor_rev: 3,
+    ///         extension_len: 0,
+    ///         extensions: None,
+    ///     },
+    /// )
+    /// .send()
+    /// .expect("Failed to send version packet");
+    /// ```
     Version(Arc<TcpStream>, PktVersion),
 }
+
 impl std::fmt::Display for Protocol {
     /// Formats the `Protocol` enum variant as a human-readable string.
     ///
@@ -98,7 +145,7 @@ impl Protocol {
         let mut byte_stream: Vec<u8> = Vec::new();
 
         #[cfg(feature = "tracing")]
-        info!("[PROTOCOL] Sending packet: {}", self);
+        info!("Sending packet: {}", self);
 
         // Serialize the packet and send it to the server
         let author = match self {
@@ -161,7 +208,7 @@ impl Protocol {
         };
 
         #[cfg(feature = "tracing")]
-        debug!("[PROTOCOL] Packet:\n{}", PCap::build(byte_stream.clone()));
+        trace!("Packet:\n{}", PCap::build(byte_stream.clone()));
 
         author.as_ref().write_all(&byte_stream)?;
 
@@ -193,7 +240,7 @@ impl Protocol {
         let packet_type = PktType::from(&buffer);
 
         #[cfg(feature = "tracing")]
-        info!("[PROTOCOL] Read packet type: {}", packet_type);
+        info!("Read packet type: {}", packet_type);
 
         match packet_type {
             PktType::MESSAGE => {

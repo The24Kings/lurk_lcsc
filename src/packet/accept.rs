@@ -1,8 +1,7 @@
-use serde::Serialize;
-use std::io::Write;
-
 use crate::pkt_type::PktType;
 use crate::{Packet, Parser};
+use serde::Serialize;
+use std::io::Write;
 
 /// Sent by the server to acknowledge a non-error-causing action which has no other direct result.
 ///
@@ -24,6 +23,26 @@ impl PktAccept {
             accept_type: accept_type.into(),
         }
     }
+}
+
+#[macro_export]
+/// Send `PktAccept` over `TcpStream` to connected user
+///
+/// ```no_run
+/// use lurk_lcsc::{Protocol, PktType, send_accept};
+/// use std::sync::Arc;
+/// use std::net::TcpStream;
+///
+/// let stream = Arc::new(TcpStream::connect("127.0.0.1:8080").unwrap());
+///
+/// send_accept!(stream.clone(), PktType::CHARACTER)
+/// ```
+macro_rules! send_accept {
+    ($stream:expr, $p_type:expr) => {
+        if let Err(e) = $crate::Protocol::Accept($stream, $crate::PktAccept::new($p_type)).send() {
+            eprintln!("Failed to send 'ACCEPT' packet: {}", e);
+        }
+    };
 }
 
 impl std::fmt::Display for PktAccept {

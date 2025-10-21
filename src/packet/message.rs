@@ -55,6 +55,34 @@ impl PktMessage {
     }
 }
 
+#[macro_export]
+/// Send `PktMessage` over `TcpStream` to connected user
+///
+/// ```no_run
+/// use lurk_lcsc::{Protocol, PktMessage, PktType, send_message};
+/// use std::sync::Arc;
+/// use std::net::TcpStream;
+///
+/// let stream = Arc::new(TcpStream::connect("127.0.0.1:8080").unwrap());
+/// let msg = PktMessage {
+///     packet_type: PktType::MESSAGE,
+///     message_len: 13 as u16,
+///     recipient: Box::from("Test"),
+///     sender: Box::from("Server"),
+///     narration: false,
+///     message: Box::from("Hello, World!"),
+/// };
+///
+/// send_message!(stream.clone(), msg)
+/// ```
+macro_rules! send_message {
+    ($stream:expr, $msg:expr) => {
+        if let Err(e) = $crate::Protocol::Message($stream, $msg).send() {
+            eprintln!("Failed to send message packet: {}", e);
+        }
+    };
+}
+
 impl std::fmt::Display for PktMessage {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(

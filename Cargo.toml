@@ -1,6 +1,6 @@
 [package]
 name = "lurk_lcsc"
-version = "2.3.8"
+version = "2.3.9"
 authors = ["Riley Ziegler", "S. Seth Long, Ph.D"]
 categories = ["network-programming"]
 description = "LCSC LURK Protocol written in Rust"
@@ -12,7 +12,7 @@ repository = "https://github.com/The24Kings/lurk_lcsc"
 rust-version = "1.85"
 
 [dependencies]
-bitflags = { version = "2.9.4", features = ["serde"] }
+bitflags = { version = "2.10.0", features = ["serde"] }
 serde = { version = "1.0.228", features = ["derive", "rc"] }
 serde_json = "1.0.145"
 tabled = { version = "0.20.0", optional = true }

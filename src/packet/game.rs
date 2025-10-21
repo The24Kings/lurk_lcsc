@@ -25,6 +25,33 @@ pub struct PktGame {
     pub description: Box<str>,
 }
 
+#[macro_export]
+/// Send `PktGame` over `TcpStream` to connected user
+///
+/// ```no_run
+/// use lurk_lcsc::{Protocol, PktGame, PktType, send_game};
+/// use std::sync::Arc;
+/// use std::net::TcpStream;
+///
+/// let stream = Arc::new(TcpStream::connect("127.0.0.1:8080").unwrap());
+/// let game = PktGame {
+///     packet_type: PktType::GAME,
+///     initial_points: 100,
+///     stat_limit: 65535,
+///     description_len: 17,
+///     description: Box::from("Test Description."),
+/// };
+///
+/// send_game!(stream.clone(), game)
+/// ```
+macro_rules! send_game {
+    ($stream:expr, $pkt_game:expr) => {
+        $crate::Protocol::Game($stream, $pkt_game)
+            .send()
+            .expect("Failed to send game packet");
+    };
+}
+
 impl std::fmt::Display for PktGame {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(

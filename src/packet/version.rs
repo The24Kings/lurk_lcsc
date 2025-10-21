@@ -25,6 +25,33 @@ pub struct PktVersion {
     pub extensions: Option<Vec<u8>>, // 0-1 length, 2+ extension;
 }
 
+#[macro_export]
+/// Send `PktVersion` over `TcpStream` to connected user
+///
+/// ```no_run
+/// use lurk_lcsc::{Protocol, PktVersion, PktType, send_version};
+/// use std::sync::Arc;
+/// use std::net::TcpStream;
+///
+/// let stream = Arc::new(TcpStream::connect("127.0.0.1:8080").unwrap());
+/// let version = PktVersion {
+///     packet_type: PktType::VERSION,
+///     major_rev: 2,
+///     minor_rev: 3,
+///     extension_len: 0,
+///     extensions: None,
+/// };
+///
+/// send_version!(stream.clone(), version)
+/// ```
+macro_rules! send_version {
+    ($stream:expr, $pkt_version:expr) => {
+        $crate::Protocol::Version($stream, $pkt_version)
+            .send()
+            .expect("Failed to send version packet");
+    };
+}
+
 impl std::fmt::Display for PktVersion {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(

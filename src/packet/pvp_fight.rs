@@ -17,7 +17,37 @@ pub struct PktPVPFight {
     /// The type of message for the `PVPFIGHT` packet. Defaults to 4.
     pub packet_type: PktType,
     /// The name of the target player, up to 32 bytes.
-    pub target_name: String,
+    pub target_name: Box<str>,
+}
+
+impl PktPVPFight {
+    /// Create a new PktPVPFight packet from a given name
+    pub fn fight(name: &str) -> Self {
+        Self {
+            packet_type: PktType::PVPFIGHT,
+            target_name: Box::from(name),
+        }
+    }
+}
+
+#[macro_export]
+/// Send `PktPVPFight` over `TcpStream` to connected user
+///
+/// ```no_run
+/// use lurk_lcsc::{Protocol, PktPVPFight, LurkError, send_pvp};
+/// use std::sync::Arc;
+/// use std::net::TcpStream;
+///
+/// let stream = Arc::new(TcpStream::connect("127.0.0.1:8080").unwrap());
+///
+/// send_pvp!(stream.clone(), PktPVPFight::fight("Test"))
+/// ```
+macro_rules! send_pvp {
+    ($stream:expr, $pkt_pvp:expr) => {
+        if let Err(e) = $crate::Protocol::PVPFight($stream, $pkt_pvp).send() {
+            eprintln!("Failed to send pvp fight packet: {}", e);
+        }
+    };
 }
 
 impl std::fmt::Display for PktPVPFight {
@@ -47,11 +77,12 @@ impl Parser<'_> for PktPVPFight {
 
         Ok(())
     }
+
     fn deserialize(packet: Packet) -> Self {
         let message_type = packet.packet_type;
         let target_name = String::from_utf8_lossy(&packet.body[0..32])
             .trim_end_matches('\0')
-            .to_string();
+            .into();
 
         Self {
             packet_type: message_type,
