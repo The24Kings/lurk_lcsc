@@ -99,12 +99,8 @@ pub trait Parser<'a>: Sized + 'a {
     /// let stream = Arc::new(TcpStream::connect("127.0.0.1:8080").unwrap());
     ///
     /// let mut buffer = [0; 1];
-    /// let bytes_read = stream.as_ref().read(&mut buffer).unwrap();
-    /// let packet_type: PktType = buffer[0].into();
-    ///
-    /// if bytes_read != 1 {
-    ///     todo!("Handle read error");
-    /// }
+    /// stream.as_ref().read_exact(&mut buffer).unwrap();
+    /// let packet_type = PktType::from(&buffer);
     ///
     /// // Match the type of the packet to the enum Type
     /// let packet: Result<Protocol, Error> = match packet_type {
