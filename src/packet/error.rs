@@ -52,7 +52,7 @@ impl PktError {
 macro_rules! send_error {
     ($stream:expr, $pkt_error:expr) => {
         if let Err(e) = $crate::Protocol::Error($stream, $pkt_error).send() {
-            ::tracing::error!("Failed to send error packet: {}", e);
+            eprintln!("Failed to send error packet: {}", e);
         }
     };
 }

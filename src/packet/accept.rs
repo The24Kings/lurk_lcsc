@@ -1,8 +1,7 @@
-use serde::Serialize;
-use std::io::Write;
-
 use crate::pkt_type::PktType;
 use crate::{Packet, Parser};
+use serde::Serialize;
+use std::io::Write;
 
 /// Sent by the server to acknowledge a non-error-causing action which has no other direct result.
 ///
@@ -41,7 +40,7 @@ impl PktAccept {
 macro_rules! send_accept {
     ($stream:expr, $p_type:expr) => {
         if let Err(e) = $crate::Protocol::Accept($stream, $crate::PktAccept::new($p_type)).send() {
-            ::tracing::error!("Failed to send accept packet: {}", e);
+            eprintln!("Failed to send 'ACCEPT' packet: {}", e);
         }
     };
 }

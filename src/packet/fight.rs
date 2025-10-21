@@ -45,7 +45,7 @@ impl Default for PktFight {
 macro_rules! send_fight {
     ($stream:expr, $pkt_fight:expr) => {
         if let Err(e) = $crate::Protocol::Fight($stream, $pkt_fight).send() {
-            ::tracing::error!("Failed to send fight packet: {}", e);
+            eprintln!("Failed to send fight packet: {}", e);
         }
     };
 }

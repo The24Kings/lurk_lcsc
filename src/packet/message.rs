@@ -78,7 +78,7 @@ impl PktMessage {
 macro_rules! send_message {
     ($stream:expr, $msg:expr) => {
         if let Err(e) = $crate::Protocol::Message($stream, $msg).send() {
-            ::tracing::error!("Failed to send message packet: {}", e);
+            eprintln!("Failed to send message packet: {}", e);
         }
     };
 }

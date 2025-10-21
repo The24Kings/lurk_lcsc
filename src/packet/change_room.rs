@@ -48,7 +48,7 @@ impl From<PktChangeRoom> for u16 {
 macro_rules! send_change_room {
     ($stream:expr, $pkt_chg_rm:expr) => {
         if let Err(e) = $crate::Protocol::ChangeRoom($stream, $pkt_chg_rm).send() {
-            ::tracing::error!("Failed to send change room packet: {}", e);
+            eprintln!("Failed to send change room packet: {}", e);
         }
     };
 }

@@ -38,7 +38,7 @@ impl PktLoot {
 macro_rules! send_loot {
     ($stream:expr, $pkt_loot:expr) => {
         if let Err(e) = $crate::Protocol::Loot($stream, $pkt_loot).send() {
-            ::tracing::error!("Failed to send loot packet: {}", e);
+            eprintln!("Failed to send loot packet: {}", e);
         }
     };
 }

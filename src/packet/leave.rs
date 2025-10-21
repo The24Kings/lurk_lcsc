@@ -34,7 +34,7 @@ impl Default for PktLeave {
 macro_rules! send_leave {
     ($stream:expr, $pkt_leave:expr) => {
         if let Err(e) = $crate::Protocol::Leave($stream, $pkt_leave).send() {
-            ::tracing::error!("Failed to send leave packet: {}", e);
+            eprintln!("Failed to send leave packet: {}", e);
         }
     };
 }

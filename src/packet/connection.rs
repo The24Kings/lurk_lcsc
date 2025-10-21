@@ -50,7 +50,7 @@ pub struct PktConnection {
 macro_rules! send_connection {
     ($stream:expr, $connection:expr) => {
         if let Err(e) = $crate::Protocol::Connection($stream, $connection).send() {
-            ::tracing::error!("Failed to send connection packet: {}", e);
+            eprintln!("Failed to send connection packet: {}", e);
         }
     };
 }

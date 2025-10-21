@@ -92,7 +92,7 @@ impl PktCharacter {
 macro_rules! send_character {
     ($stream:expr, $player:expr) => {
         if let Err(e) = $crate::Protocol::Character($stream, $player).send() {
-            ::tracing::error!("Failed to send character packet: {}", e);
+            eprintln!("Failed to send character packet: {}", e);
         }
     };
 }

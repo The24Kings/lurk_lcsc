@@ -7,7 +7,7 @@ use std::sync::Arc;
 #[cfg(feature = "tracing")]
 use crate::pcap::PCap;
 #[cfg(feature = "tracing")]
-use tracing::{debug, info};
+use tracing::{info, trace};
 
 use crate::{
     Packet, Parser, PktAccept, PktChangeRoom, PktCharacter, PktConnection, PktError, PktFight,
@@ -145,7 +145,7 @@ impl Protocol {
         let mut byte_stream: Vec<u8> = Vec::new();
 
         #[cfg(feature = "tracing")]
-        info!("[PROTOCOL] Sending packet: {}", self);
+        info!("Sending packet: {}", self);
 
         // Serialize the packet and send it to the server
         let author = match self {
@@ -208,7 +208,7 @@ impl Protocol {
         };
 
         #[cfg(feature = "tracing")]
-        debug!("[PROTOCOL] Packet:\n{}", PCap::build(byte_stream.clone()));
+        trace!("Packet:\n{}", PCap::build(byte_stream.clone()));
 
         author.as_ref().write_all(&byte_stream)?;
 
@@ -240,7 +240,7 @@ impl Protocol {
         let packet_type = PktType::from(&buffer);
 
         #[cfg(feature = "tracing")]
-        info!("[PROTOCOL] Read packet type: {}", packet_type);
+        info!("Read packet type: {}", packet_type);
 
         match packet_type {
             PktType::MESSAGE => {

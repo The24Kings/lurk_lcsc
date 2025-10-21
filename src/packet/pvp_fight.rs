@@ -45,7 +45,7 @@ impl PktPVPFight {
 macro_rules! send_pvp {
     ($stream:expr, $pkt_pvp:expr) => {
         if let Err(e) = $crate::Protocol::PVPFight($stream, $pkt_pvp).send() {
-            ::tracing::error!("Failed to send pvp fight packet: {}", e);
+            eprintln!("Failed to send pvp fight packet: {}", e);
         }
     };
 }

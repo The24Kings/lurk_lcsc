@@ -39,7 +39,7 @@ impl Default for PktStart {
 macro_rules! send_start {
     ($stream:expr, $pkt_fight:expr) => {
         if let Err(e) = $crate::Protocol::Start($stream, $pkt_fight).send() {
-            ::tracing::error!("Failed to send start packet: {}", e);
+            eprintln!("Failed to send start packet: {}", e);
         }
     };
 }

@@ -46,7 +46,7 @@ pub struct PktRoom {
 macro_rules! send_room {
     ($stream:expr, $room:expr) => {
         if let Err(e) = $crate::Protocol::Room($stream, $room).send() {
-            ::tracing::error!("Failed to send room packet: {}", e);
+            eprintln!("Failed to send room packet: {}", e);
         }
     };
 }
