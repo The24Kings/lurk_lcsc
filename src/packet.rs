@@ -194,7 +194,7 @@ impl<'a> Packet<'a> {
         })?;
 
         // Get the description length from the buffer
-        let length = usize::from_le_bytes([buffer[index.0], buffer[index.1], 0, 0, 0, 0, 0, 0]);
+        let length = u16::from_le_bytes([buffer[index.0], buffer[index.1]]) as usize;
         let mut desc = vec![0u8; length];
 
         #[cfg(feature = "tracing")]
