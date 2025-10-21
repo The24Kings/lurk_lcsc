@@ -149,7 +149,7 @@ impl<'a> Packet<'a> {
         Packet {
             stream,
             packet_type,
-            body: &bytes[0..],
+            body: &bytes[1..],
         }
     }
 
