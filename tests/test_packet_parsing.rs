@@ -1,6 +1,7 @@
 mod common;
 
-use lurk_lcsc::{PCap, Packet, Parser, PktMessage, PktType};
+use lurk_lcsc::PktMessage;
+use lurk_lcsc::{Packet, Parser, PktType};
 
 #[test]
 fn test_packet_message_parse_and_serialize() {
@@ -17,20 +18,14 @@ fn test_packet_message_parse_and_serialize() {
     // Create a packet with known bytes
     let packet = Packet::new(&stream, PktType::MESSAGE, original_bytes);
 
-    println!("{}", PCap::build(Vec::from(original_bytes)));
-
     // Deserialize the packet into a PktMessage
     let message = PktMessage::deserialize(packet);
-
-    println!("{}", message);
 
     // Serialize the message back into bytes
     let mut buffer: Vec<u8> = Vec::new();
     message
         .serialize(&mut buffer)
         .expect("Serialization failed");
-
-    println!("{}", PCap::build(Vec::from(buffer.clone())));
 
     // Assert that the serialized bytes match the original
     assert_eq!(buffer, original_bytes);
