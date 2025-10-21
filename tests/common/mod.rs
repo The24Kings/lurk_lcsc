@@ -13,6 +13,7 @@ pub fn setup() -> Arc<TcpStream> {
         let listener = TcpListener::bind("127.0.0.1:0").expect("Failed to bind TCP listener");
         let addr = listener.local_addr().expect("Failed to get local address");
 
+        // Listen for incoming connections
         thread::spawn(move || {
             for stream in listener.incoming() {
                 match stream {
@@ -28,11 +29,11 @@ pub fn setup() -> Arc<TcpStream> {
             }
         });
 
+        // Give the server a moment to start
+        thread::sleep(Duration::from_millis(100));
+
         addr
     });
-
-    // Give the server a moment to start
-    thread::sleep(Duration::from_millis(100));
 
     let addr = match SERVER_ADDR.get() {
         Some(addr) => addr,
@@ -40,7 +41,7 @@ pub fn setup() -> Arc<TcpStream> {
     };
 
     // Connect to the server using the stored address
-    let stream = TcpStream::connect(*addr).expect("Failed to connect to server");
+    let stream = TcpStream::connect(addr).expect("Failed to connect to server");
 
     Arc::new(stream)
 }
