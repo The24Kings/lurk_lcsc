@@ -220,14 +220,17 @@ impl Protocol {
     /// use std::net::TcpStream;
     /// use std::sync::{Arc, mpsc};
     ///
-    /// let (tx, _rx) = mpsc::channel();
+    /// let (tx, _rx) = mpsc::channel::<Protocol>();
     /// let stream = Arc::new(TcpStream::connect("127.0.0.1:8080").unwrap());
     /// let sender = Arc::new(tx);
     ///
     /// loop {
     ///     let packet = match Protocol::recv(&stream) {
     ///         Ok(pkt) => pkt,
-    ///         Err(e) => eprintln!("Error receiving packet: {}", e);
+    ///         Err(e) => {
+    ///             eprintln!("Error receiving packet: {}", e);
+    ///             continue;
+    ///         },
     ///     };
     ///
     ///     match packet {

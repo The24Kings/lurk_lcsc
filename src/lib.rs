@@ -36,7 +36,7 @@
 //!
 //! std::thread::spawn(move || {
 //!     loop {
-//!         let packet = match receiver.lock().unwrap().recv().unwrap();
+//!         let packet = receiver.lock().unwrap().recv().unwrap();
 //!
 //!         match packet {
 //!             Protocol::Start(author, content) => {
@@ -64,7 +64,7 @@
 //!
 //! std::thread::spawn(move || {
 //!     loop {
-//!         match Protocol::recv(stream.clone()) {
+//!         match Protocol::recv(&stream) {
 //!             Ok(packet) => {
 //!                 // Send the received packet to the main thread for processing
 //!                 sender.send(packet).unwrap();
