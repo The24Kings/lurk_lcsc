@@ -159,6 +159,19 @@ pub mod lurk_error;
 pub mod packet;
 #[cfg(feature = "tracing")]
 /// Packet capture and tracing utilities.
+///
+/// ```no_run
+/// use lurk_lcsc::{PktMessage, Parser, PCap};
+/// use std::net::TcpStream;
+/// use std::sync::Arc;
+///
+/// let packet = PktMessage::server("Player1", "Welcome to the game!");
+///
+/// let mut buffer: Vec<u8> = Vec::new();
+/// packet.serialize(&mut buffer).unwrap();
+///
+/// println!("{}", PCap::build(buffer));
+/// ```
 pub mod pcap;
 /// Packet type definitions.
 pub mod pkt_type;
