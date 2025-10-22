@@ -144,12 +144,13 @@ pub struct Packet<'a> {
 }
 
 impl<'a> Packet<'a> {
-    /// Creates a new `Packet` instance from the given TCP stream, message type, and byte slice.
+    /// Creates a new `Packet` from the given TCP stream, packet type, and byte slice.
+    /// - `bytes` - All bytes from the stream other than the initial type byte.
     pub fn new(stream: &'a Arc<TcpStream>, packet_type: PktType, bytes: &'a [u8]) -> Self {
         Packet {
             stream,
             packet_type,
-            body: &bytes[..],
+            body: bytes,
         }
     }
 
