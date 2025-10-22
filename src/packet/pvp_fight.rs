@@ -81,8 +81,9 @@ impl Parser<'_> for PktPVPFight {
     fn deserialize(packet: Packet) -> Self {
         let message_type = packet.packet_type;
         let target_name = String::from_utf8_lossy(&packet.body[0..32])
-            .trim_end_matches('\0')
-            .into();
+            .split('\0')
+            .take(1)
+            .collect();
 
         Self {
             packet_type: message_type,

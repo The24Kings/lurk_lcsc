@@ -87,8 +87,9 @@ impl Parser<'_> for PktRoom {
         let message_type = packet.packet_type;
         let room_number = u16::from_le_bytes([packet.body[0], packet.body[1]]);
         let room_name = String::from_utf8_lossy(&packet.body[2..34])
-            .trim_end_matches('\0')
-            .into();
+            .split('\0')
+            .take(1)
+            .collect();
         let description_len = u16::from_le_bytes([packet.body[34], packet.body[35]]);
         let description = String::from_utf8_lossy(&packet.body[36..]).into();
 
