@@ -89,8 +89,9 @@ impl Parser<'_> for PktError {
         let error = LurkError::from(packet.body[0]);
         let message_len = u16::from_le_bytes([packet.body[1], packet.body[2]]);
         let message = String::from_utf8_lossy(&packet.body[3..])
-            .trim_end_matches('\0')
-            .into();
+            .split('\0')
+            .take(1)
+            .collect();
 
         Self {
             packet_type: message_type,
@@ -100,3 +101,43 @@ impl Parser<'_> for PktError {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use crate::test_common;
+
+    use super::*;
+
+    #[test]
+    fn error_parse_and_serialize() {
+        let stream = test_common::setup();
+        let type_byte = PktType::ERROR;
+        let original_bytes: &[u8; 17] = &[
+            0x07, 0x04, 0x0d, 0x00, 0x49, 0x6e, 0x76, 0x61, 0x6c, 0x69, 0x64, 0x20, 0x73, 0x74,
+            0x61, 0x74, 0x73,
+        ];
+
+        // Create a packet with known bytes, excluding the type byte
+        let packet = Packet::new(&stream, type_byte, &original_bytes[1..]);
+
+        // Deserialize the packet into a PktError
+        let message = PktError::deserialize(packet);
+
+        // Assert the fields were parsed correctly
+        assert_eq!(message.packet_type, PktType::ERROR);
+        assert_eq!(message.error, LurkError::STATERROR);
+        assert_eq!(message.message_len, 13);
+        assert_eq!(message.message.as_ref(), "Invalid stats");
+
+        // Serialize the message back into bytes
+        let mut buffer: Vec<u8> = Vec::new();
+        message
+            .serialize(&mut buffer)
+            .expect("Serialization failed");
+
+        // Assert that the serialized bytes match the original
+        assert_eq!(buffer, original_bytes);
+        assert_eq!(buffer[0], u8::from(type_byte));
+    }
+}
+////////////////////////////////////////////////////////////////////////////////

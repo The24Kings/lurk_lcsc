@@ -7,14 +7,78 @@
 //! including parsing, error handling, and protocol definitions.
 //!
 //! ## Features
-//! - Optional `tracing` support for structured logging and diagnostics.
+//! - Optional `tracing` support for structured logging and diagnostics. Also adds the [`PCap`] type for capturing and debugging packet data.
 //!
-//! For more details about the protocol itself, see the [LURK Protocol Wiki](https://github.com/The24Kings/LurkProtocol/wiki).
+//! For more details about the protocol itself, see the [Lurk Protocol Wiki](https://github.com/The24Kings/LurkProtocol/wiki).
+//!
+//! ## Where to start
+//!
+//! A good starting point is the [`Protocol`] enum, which defines the various packet types and their associated data structures.
+//! You can also explore the [`packet`] module for detailed packet definitions and parsing logic.
+//!
+//! # Basic Usage
+//!
+//! Server thread uses `Protocol::recv()` to receive packets from connected clients over `TcpStream`
+//! and the packet's corresponding struct is returned for processing.
+//!
+//! Each connected client can be sent packets using the provided macros, such as `send_accept!`, `send_error!`, and `send_character!`.
+//!
+//! ### Server Example
+//!
+//! ```no_run
+//! use lurk_lcsc::Protocol;
+//! use std::net::TcpStream;
+//! use std::sync::{Arc, mpsc, Mutex};
+//!
+//! let (_tx, rx) = mpsc::channel();
+//!
+//! let receiver = Arc::new(Mutex::new(rx));
+//!
+//! std::thread::spawn(move || {
+//!     loop {
+//!         let packet = receiver.lock().unwrap().recv().unwrap();
+//!
+//!         match packet {
+//!             Protocol::Start(author, content) => {
+//!                 // Handle start packet
+//!             },
+//!             _ => {
+//!                // Handle other packet types
+//!             },
+//!        }
+//!    }
+//! });
+//! ```
+//!
+//! ### Client Example
+//!
+//! ```no_run
+//! use lurk_lcsc::Protocol;
+//! use std::net::TcpStream;
+//! use std::sync::{Arc, mpsc};
+//!
+//! let (tx, _rx) = mpsc::channel();
+//!
+//! let stream = Arc::new(TcpStream::connect("127.0.0.1:8080").unwrap());
+//! let sender = Arc::new(tx);
+//!
+//! std::thread::spawn(move || {
+//!     loop {
+//!         match Protocol::recv(&stream) {
+//!             Ok(packet) => {
+//!                 // Send the received packet to the main thread for processing
+//!                 sender.send(packet).unwrap();
+//!             },
+//!             Err(e) => eprintln!("Error receiving packet: {}", e),
+//!         }
+//!     }
+//! });
+//! ```
 
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
 // Lurk types in rustdoc of other crates get linked to here.
-#![doc(html_root_url = "https://docs.rs/lurk_lcsc/2.3.9")]
+#![doc(html_root_url = "https://docs.rs/lurk_lcsc/2.3.10")]
 // Show which crate feature enables conditionally compiled APIs in documentation.
 #![cfg_attr(docsrs, feature(doc_cfg, rustdoc_internals))]
 #![cfg_attr(docsrs, allow(internal_features))]
@@ -68,7 +132,9 @@
 
 pub use flags::CharacterFlags;
 pub use lurk_error::LurkError;
-pub use packet::{Packet, Parser};
+#[doc(hidden)]
+pub use packet::Packet;
+pub use packet::Parser;
 pub use packet::{
     accept::PktAccept, change_room::PktChangeRoom, character::PktCharacter,
     connection::PktConnection, error::PktError, fight::PktFight, game::PktGame, leave::PktLeave,
@@ -78,19 +144,44 @@ pub use packet::{
 pub use pkt_type::PktType;
 pub use protocol::Protocol;
 
-/// Structures and utilities for character flags.
+/// Flags representing the state of a character in the game.
+///
+/// When a client uses [`PktType::CHARACTER`] to describe a new player, the server may (should) ignore the client's initial specification for flags, health, gold, etc.
+/// using [`CharacterFlags::reset()`].
+/// > Since the character packet is shared between players and monsters, the server is responsible for setting these values correctly.
 pub mod flags;
 /// Error types for the Lurk protocol.
 pub mod lurk_error;
-/// Packet definitions and parsing logic.
+/// Module for handling various packet types in the Lurk protocol.
+///
+/// This module defines the [`Parser`] trait for serializing and deserializing packets,
+/// as well as the various packet structures used in the protocol.
 pub mod packet;
 #[cfg(feature = "tracing")]
 /// Packet capture and tracing utilities.
+///
+/// ```no_run
+/// use lurk_lcsc::{PktMessage, Parser, PCap};
+/// use std::net::TcpStream;
+/// use std::sync::Arc;
+///
+/// let packet = PktMessage::server("Player1", "Welcome to the game!");
+///
+/// let mut buffer: Vec<u8> = Vec::new();
+/// packet.serialize(&mut buffer).unwrap();
+///
+/// println!("{}", PCap::build(buffer));
+/// ```
 pub mod pcap;
 /// Packet type definitions.
 pub mod pkt_type;
-/// Protocol definitions.
+/// The Protocol.
 pub mod protocol;
 
 #[cfg(feature = "tracing")]
 pub use pcap::PCap;
+
+/// Testing utilities and common setup for tests.
+#[doc(hidden)]
+#[allow(dead_code)] // Suppress unused warning as this module is used in multiple test modules.
+pub(crate) mod test_common;

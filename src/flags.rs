@@ -5,8 +5,9 @@ bitflags! {
     #[derive(Default, Debug, Serialize, Clone, Copy, PartialEq, Eq, Hash)]
     /// Flags representing the state of a character in the game.
     ///
-    /// - When a client uses `PktType::CHARACTER` to describe a new player, the server may (should) ignore the client's initial specification for health, gold, and room.
-    /// - The monster flag is used when describing monsters found in the game rather than other human players.
+    /// When a client uses [`PktType::CHARACTER`] to describe a new player, the server may (should) ignore the client's initial specification for flags, health, gold, etc.
+    /// using [`CharacterFlags::reset()`].
+    /// > Since the character packet is shared between players and monsters, the server is responsible for setting these values correctly.
     pub struct CharacterFlags: u8 {
         /// The character is alive.
         const ALIVE = 0b1000_0000;

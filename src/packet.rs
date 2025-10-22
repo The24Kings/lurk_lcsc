@@ -85,6 +85,23 @@ pub mod version;
 /// ```
 pub trait Parser<'a>: Sized + 'a {
     /// Serializes the packet and writes it to the provided writer.
+    ///
+    /// ```no_run
+    /// use lurk_lcsc::{Parser, PktType};
+    /// use lurk_lcsc::PktVersion;
+    /// use std::io::Write;
+    ///
+    /// let packet = PktVersion {
+    ///    packet_type: PktType::VERSION,
+    ///    major_rev: 2,
+    ///    minor_rev: 3,
+    ///    extensions_len: 0,
+    ///    extensions: None,
+    /// };
+    ///
+    /// let mut buffer: Vec<u8> = Vec::new();
+    /// packet.serialize(&mut buffer).unwrap();
+    /// ```
     fn serialize<W: Write>(self, writer: &mut W) -> Result<(), std::io::Error>;
 
     /// Deserializes a Packet into the implementing type.
@@ -99,12 +116,8 @@ pub trait Parser<'a>: Sized + 'a {
     /// let stream = Arc::new(TcpStream::connect("127.0.0.1:8080").unwrap());
     ///
     /// let mut buffer = [0; 1];
-    /// let bytes_read = stream.as_ref().read(&mut buffer).unwrap();
-    /// let packet_type: PktType = buffer[0].into();
-    ///
-    /// if bytes_read != 1 {
-    ///     todo!("Handle read error");
-    /// }
+    /// stream.as_ref().read_exact(&mut buffer).unwrap();
+    /// let packet_type = PktType::from(&buffer);
     ///
     /// // Match the type of the packet to the enum Type
     /// let packet: Result<Protocol, Error> = match packet_type {
@@ -127,17 +140,7 @@ pub trait Parser<'a>: Sized + 'a {
 
 /// Represents a network packet containing a reference to the TCP stream, packet type, and body.
 ///
-/// ```no_run
-/// use std::net::TcpStream;
-/// use std::sync::Arc;
-/// use lurk_lcsc::pkt_type::PktType;
-/// use lurk_lcsc::packet::Packet;
-///
-/// let stream = Arc::new(TcpStream::connect("127.0.0.1:8080").unwrap());
-/// let packet_type = PktType::DEFAULT; // Replace with an actual variant
-/// let body = &[0u8; 32];
-/// let packet = Packet::new(&stream, packet_type, body);
-/// ```
+/// Do not use this directly; for internal use only. Needed for testing.
 pub struct Packet<'a> {
     /// Reference to the TCP stream associated with this packet.
     pub stream: &'a Arc<TcpStream>,
@@ -148,12 +151,12 @@ pub struct Packet<'a> {
 }
 
 impl<'a> Packet<'a> {
-    /// Creates a new `Packet` instance from the given TCP stream, message type, and byte slice.
-    pub fn new(stream: &'a Arc<TcpStream>, packet_type: PktType, bytes: &'a [u8]) -> Self {
+    /// Creates a new `Packet` from the given TCP stream, packet type, and byte slice.
+    pub(crate) fn new(stream: &'a Arc<TcpStream>, packet_type: PktType, bytes: &'a [u8]) -> Self {
         Packet {
             stream,
             packet_type,
-            body: &bytes[0..],
+            body: bytes,
         }
     }
 
@@ -198,7 +201,7 @@ impl<'a> Packet<'a> {
         })?;
 
         // Get the description length from the buffer
-        let length = usize::from_le_bytes([buffer[index.0], buffer[index.1], 0, 0, 0, 0, 0, 0]);
+        let length = u16::from_le_bytes([buffer[index.0], buffer[index.1]]) as usize;
         let mut desc = vec![0u8; length];
 
         #[cfg(feature = "tracing")]

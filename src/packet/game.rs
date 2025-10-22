@@ -95,3 +95,44 @@ impl Parser<'_> for PktGame {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use crate::test_common;
+
+    use super::*;
+
+    #[test]
+    fn game_parse_and_serialize() {
+        let stream = test_common::setup();
+        let type_byte = PktType::GAME;
+        let original_bytes: &[u8; 23] = &[
+            0x0b, 0x64, 0x00, 0xff, 0xff, 0x10, 0x00, 0x54, 0x68, 0x69, 0x73, 0x20, 0x69, 0x73,
+            0x20, 0x61, 0x20, 0x74, 0x65, 0x73, 0x74, 0x21, 0x0a,
+        ];
+
+        // Create a packet with known bytes, excluding the type byte
+        let packet = Packet::new(&stream, type_byte, &original_bytes[1..]);
+
+        // Deserialize the packet into a PktGame
+        let message = PktGame::deserialize(packet);
+
+        // Assert the fields were parsed correctly
+        assert_eq!(message.packet_type, PktType::GAME);
+        assert_eq!(message.initial_points, 100);
+        assert_eq!(message.stat_limit, 65535);
+        assert_eq!(message.description_len, 16);
+        assert_eq!(message.description.as_ref(), "This is a test!\n");
+
+        // Serialize the message back into bytes
+        let mut buffer: Vec<u8> = Vec::new();
+        message
+            .serialize(&mut buffer)
+            .expect("Serialization failed");
+
+        // Assert that the serialized bytes match the original
+        assert_eq!(buffer, original_bytes);
+        assert_eq!(buffer[0], u8::from(type_byte));
+    }
+}
+////////////////////////////////////////////////////////////////////////////////

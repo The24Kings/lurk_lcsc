@@ -92,8 +92,9 @@ impl Parser<'_> for PktConnection {
         let message_type = packet.packet_type;
         let room_number = u16::from_le_bytes([packet.body[0], packet.body[1]]);
         let room_name = String::from_utf8_lossy(&packet.body[2..34])
-            .trim_end_matches('\0')
-            .into();
+            .split('\0')
+            .take(1)
+            .collect();
         let description_len = u16::from_le_bytes([packet.body[34], packet.body[35]]);
         let description = String::from_utf8_lossy(&packet.body[36..]).into();
 
@@ -106,3 +107,51 @@ impl Parser<'_> for PktConnection {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use crate::test_common;
+
+    use super::*;
+
+    #[test]
+    fn connection_parse_and_serialize() {
+        let stream = test_common::setup();
+        let type_byte = PktType::CONNECTION;
+        let original_bytes: &[u8; 75] = &[
+            0x0d, 0x01, 0x00, 0x54, 0x65, 0x73, 0x74, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+            0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+            0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x26, 0x00, 0x41, 0x75, 0x74, 0x6f, 0x2d,
+            0x67, 0x65, 0x6e, 0x65, 0x72, 0x61, 0x74, 0x65, 0x64, 0x20, 0x63, 0x6f, 0x6e, 0x6e,
+            0x65, 0x63, 0x74, 0x69, 0x6f, 0x6e, 0x20, 0x64, 0x65, 0x73, 0x63, 0x72, 0x69, 0x70,
+            0x74, 0x69, 0x6f, 0x6e, 0x2e,
+        ];
+
+        // Create a packet with known bytes, excluding the type byte
+        let packet = Packet::new(&stream, type_byte, &original_bytes[1..]);
+
+        // Deserialize the packet into a PktConnection
+        let message = PktConnection::deserialize(packet);
+
+        // Assert the fields were parsed correctly
+        assert_eq!(message.packet_type, PktType::CONNECTION);
+        assert_eq!(message.room_number, 1);
+        assert_eq!(message.room_name.as_ref(), "Test");
+        assert_eq!(message.description_len, 38);
+        assert_eq!(
+            message.description.as_ref(),
+            "Auto-generated connection description."
+        );
+
+        // Serialize the message back into bytes
+        let mut buffer: Vec<u8> = Vec::new();
+        message
+            .serialize(&mut buffer)
+            .expect("Serialization failed");
+
+        // Assert that the serialized bytes match the original
+        assert_eq!(buffer, original_bytes);
+        assert_eq!(buffer[0], u8::from(type_byte));
+    }
+}
+////////////////////////////////////////////////////////////////////////////////
