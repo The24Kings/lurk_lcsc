@@ -83,3 +83,42 @@ impl Parser<'_> for PktLoot {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use crate::test_common;
+
+    use super::*;
+
+    #[test]
+    fn loot_parse_and_serialize() {
+        let stream = test_common::setup();
+        let type_byte = PktType::LOOT;
+        let original_bytes: &[u8; 33] = &[
+            0x05, 0x54, 0x65, 0x73, 0x74, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+            0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+            0x00, 0x00, 0x00, 0x00, 0x00,
+        ];
+
+        // Create a packet with known bytes, excluding the type byte
+        let packet = Packet::new(&stream, type_byte, &original_bytes[1..]);
+
+        // Deserialize the packet into a PktLoot
+        let message = PktLoot::deserialize(packet);
+
+        // Assert the fields were parsed correctly
+        assert_eq!(message.packet_type, PktType::LOOT);
+        assert_eq!(message.target_name.as_ref(), "Test");
+
+        // Serialize the message back into bytes
+        let mut buffer: Vec<u8> = Vec::new();
+        message
+            .serialize(&mut buffer)
+            .expect("Serialization failed");
+
+        // Assert that the serialized bytes match the original
+        assert_eq!(buffer, original_bytes);
+        assert_eq!(buffer[0], u8::from(type_byte));
+    }
+}
+////////////////////////////////////////////////////////////////////////////////

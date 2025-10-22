@@ -73,3 +73,36 @@ impl Parser<'_> for PktStart {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use crate::test_common;
+
+    use super::*;
+
+    #[test]
+    fn start_parse_and_serialize() {
+        let stream = test_common::setup();
+        let type_byte = PktType::START;
+        let original_bytes: &[u8; 1] = &[0x06];
+        // Create a packet with known bytes, excluding the type byte
+        let packet = Packet::new(&stream, type_byte, &original_bytes[1..]);
+
+        // Deserialize the packet into a PktStart
+        let message = PktStart::deserialize(packet);
+
+        // Assert the fields were parsed correctly
+        assert_eq!(message.packet_type, PktType::START);
+
+        // Serialize the message back into bytes
+        let mut buffer: Vec<u8> = Vec::new();
+        message
+            .serialize(&mut buffer)
+            .expect("Serialization failed");
+
+        // Assert that the serialized bytes match the original
+        assert_eq!(buffer, original_bytes);
+        assert_eq!(buffer[0], u8::from(type_byte));
+    }
+}
+////////////////////////////////////////////////////////////////////////////////
