@@ -36,7 +36,6 @@ pub enum Protocol {
     Room(Arc<TcpStream>, PktRoom),
     /// Packet containing character information.
     Character(Arc<TcpStream>, PktCharacter),
-    /// ## CRITICAL
     /// Packet containing game information.
     /// Must be sent __second__ on new connections.
     ///
@@ -65,7 +64,6 @@ pub enum Protocol {
     Leave(Arc<TcpStream>, PktLeave),
     /// Packet containing connection information.
     Connection(Arc<TcpStream>, PktConnection),
-    /// ## CRITICAL
     /// Packet containing version information.
     /// Must be sent __first__ on new connections.
     ///
@@ -138,7 +136,7 @@ impl Protocol {
     /// let stream = Arc::new(TcpStream::connect("127.0.0.1:8080").unwrap());
     /// let pkt_message = PktMessage::server("Recipient", "Message");
     ///
-    /// // Send the packet
+    /// // Send the packet to connected user
     /// Protocol::Message(stream.clone(), pkt_message).send().unwrap();
     /// ```
     pub fn send(self) -> Result<(), std::io::Error> {
@@ -218,20 +216,28 @@ impl Protocol {
     /// Receive one packet from the connected TcpStream
     ///
     /// ```no_run
-    /// use lurk_lcsc::{Protocol, PktLeave};
-    /// use std::io::{Error, ErrorKind};
+    /// use lurk_lcsc::Protocol;
     /// use std::net::TcpStream;
-    /// use std::sync::Arc;
+    /// use std::sync::{Arc, mpsc};
     ///
+    /// let (tx, _rx) = mpsc::channel();
     /// let stream = Arc::new(TcpStream::connect("127.0.0.1:8080").unwrap());
+    /// let sender = Arc::new(tx);
     ///
     /// loop {
     ///     let packet = match Protocol::recv(&stream) {
     ///         Ok(pkt) => pkt,
-    ///         Err(e) => todo!("Handle any errors"),
+    ///         Err(e) => eprintln!("Error receiving packet: {}", e);
     ///     };
     ///
-    ///     todo!("Send packet to server")
+    ///     match packet {
+    ///         Protocol::Leave(author, content) => {
+    ///             // Handle leave packet
+    ///         },
+    ///         _ => {
+    ///            // Handle other packet types
+    ///        },
+    ///     }
     /// }
     /// ```
     pub fn recv(stream: &Arc<TcpStream>) -> Result<Protocol, std::io::Error> {

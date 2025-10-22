@@ -139,7 +139,8 @@ pub trait Parser<'a>: Sized + 'a {
 }
 
 /// Represents a network packet containing a reference to the TCP stream, packet type, and body.
-#[doc(hidden)]
+///
+/// Do not use this directly; for internal use only. Needed for testing.
 pub struct Packet<'a> {
     /// Reference to the TCP stream associated with this packet.
     pub stream: &'a Arc<TcpStream>,
@@ -151,7 +152,6 @@ pub struct Packet<'a> {
 
 impl<'a> Packet<'a> {
     /// Creates a new `Packet` from the given TCP stream, packet type, and byte slice.
-    #[doc(hidden)]
     pub(crate) fn new(stream: &'a Arc<TcpStream>, packet_type: PktType, bytes: &'a [u8]) -> Self {
         Packet {
             stream,
