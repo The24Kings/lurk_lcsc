@@ -82,7 +82,7 @@ pub enum Protocol {
     ///         packet_type: PktType::VERSION,
     ///         major_rev: 2,
     ///         minor_rev: 3,
-    ///         extension_len: 0,
+    ///         extensions_len: 0,
     ///         extensions: None,
     ///     },
     /// )

@@ -9,7 +9,7 @@
 //! ## Features
 //! - Optional `tracing` support for structured logging and diagnostics.
 //!
-//! For more details about the protocol itself, see the [LURK Protocol Wiki](https://github.com/The24Kings/LurkProtocol/wiki).
+//! For more details about the protocol itself, see the [Lurk Protocol Wiki](https://github.com/The24Kings/LurkProtocol/wiki).
 
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -68,7 +68,9 @@
 
 pub use flags::CharacterFlags;
 pub use lurk_error::LurkError;
-pub use packet::{Packet, Parser};
+#[doc(hidden)]
+pub use packet::Packet;
+pub use packet::Parser;
 pub use packet::{
     accept::PktAccept, change_room::PktChangeRoom, character::PktCharacter,
     connection::PktConnection, error::PktError, fight::PktFight, game::PktGame, leave::PktLeave,
@@ -94,3 +96,8 @@ pub mod protocol;
 
 #[cfg(feature = "tracing")]
 pub use pcap::PCap;
+
+/// Testing utilities and common setup for tests.
+#[doc(hidden)]
+#[allow(dead_code)] // Suppress unused warning as this module is used in multiple test modules.
+pub(crate) mod test_common;

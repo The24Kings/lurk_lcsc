@@ -14,7 +14,7 @@ pub struct PktVersion {
     /// The minor revision number of the server.
     pub minor_rev: u8,
     /// The length of the extensions field.
-    pub extension_len: u16,
+    pub extensions_len: u16,
     /// The extensions field:
     /// - 0-1 Length of the first extension, as an unsigned 16-bit integer.
     /// - 2+ First extension
@@ -38,7 +38,7 @@ pub struct PktVersion {
 ///     packet_type: PktType::VERSION,
 ///     major_rev: 2,
 ///     minor_rev: 3,
-///     extension_len: 0,
+///     extensions_len: 0,
 ///     extensions: None,
 /// };
 ///
@@ -70,7 +70,7 @@ impl Parser<'_> for PktVersion {
 
         packet.extend(self.major_rev.to_le_bytes());
         packet.extend(self.minor_rev.to_le_bytes());
-        packet.extend(self.extension_len.to_le_bytes());
+        packet.extend(self.extensions_len.to_le_bytes());
 
         if let Some(extensions) = &self.extensions {
             packet.extend(extensions);
@@ -89,8 +89,46 @@ impl Parser<'_> for PktVersion {
             packet_type: packet.packet_type,
             major_rev: packet.body[0],
             minor_rev: packet.body[1],
-            extension_len: 0,
+            extensions_len: 0,
             extensions: None, // Server currently does not use extensions
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use crate::test_common;
+
+    use super::*;
+
+    #[test]
+    fn version_parse_and_serialize() {
+        let stream = test_common::setup();
+        let type_byte = PktType::VERSION;
+        let original_bytes: &[u8; 5] = &[0x0e, 0x02, 0x03, 0x00, 0x00];
+
+        // Create a packet with known bytes, excluding the type byte
+        let packet = Packet::new(&stream, type_byte, &original_bytes[1..]);
+
+        // Deserialize the packet into a PktVersion
+        let message = PktVersion::deserialize(packet);
+
+        // Assert the fields were parsed correctly
+        assert_eq!(message.packet_type, PktType::VERSION);
+        assert_eq!(message.major_rev, 2);
+        assert_eq!(message.minor_rev, 3);
+        assert_eq!(message.extensions_len, 0);
+        assert!(message.extensions.is_none());
+
+        // Serialize the message back into bytes
+        let mut buffer: Vec<u8> = Vec::new();
+        message
+            .serialize(&mut buffer)
+            .expect("Serialization failed");
+
+        // Assert that the serialized bytes match the original
+        assert_eq!(buffer, original_bytes);
+        assert_eq!(buffer[0], u8::from(type_byte));
+    }
+}
+////////////////////////////////////////////////////////////////////////////////

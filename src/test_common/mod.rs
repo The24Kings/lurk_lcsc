@@ -5,7 +5,7 @@ use std::time::Duration;
 
 static SERVER_CONN: OnceLock<TcpStream> = OnceLock::new();
 
-pub fn setup() -> Arc<TcpStream> {
+pub(crate) fn setup() -> Arc<TcpStream> {
     // Start the server only once; I just need a valid TcpStream for testing.
     SERVER_CONN.get_or_init(|| {
         // Use a channel to share the listener's address with the main thread

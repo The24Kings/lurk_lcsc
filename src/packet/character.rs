@@ -171,3 +171,53 @@ impl Parser<'_> for PktCharacter {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use crate::test_common;
+
+    use super::*;
+
+    #[test]
+    fn character_parse_and_serialize() {
+        let stream = test_common::setup();
+        let type_byte = PktType::CHARACTER;
+        let original_bytes: &[u8; 74] = &[
+            0x0a, 0x4c, 0x61, 0x64, 0x61, 0x77, 0x6e, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+            0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+            0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x64, 0x00, 0x00, 0x00, 0x00, 0x00, 0x64, 0x00,
+            0x00, 0x00, 0x00, 0x00, 0x1a, 0x00, 0x41, 0x75, 0x74, 0x6f, 0x2d, 0x67, 0x65, 0x6e,
+            0x65, 0x72, 0x61, 0x74, 0x65, 0x64, 0x20, 0x74, 0x65, 0x73, 0x74, 0x20, 0x70, 0x6c,
+            0x61, 0x79, 0x65, 0x72,
+        ];
+
+        // Create a packet with known bytes, excluding the type byte
+        let packet = Packet::new(&stream, type_byte, &original_bytes[1..]);
+
+        // Deserialize the packet into a PktCharacter
+        let message = PktCharacter::deserialize(packet);
+
+        // Assert the fields were parsed correctly
+        assert_eq!(message.packet_type, PktType::CHARACTER);
+        assert_eq!(message.name.as_ref(), "Ladawn");
+        assert!(message.flags.is_empty());
+        assert_eq!(message.attack, 100);
+        assert_eq!(message.defense, 0);
+        assert_eq!(message.regen, 0);
+        assert_eq!(message.health, 100);
+        assert_eq!(message.gold, 0);
+        assert_eq!(message.description_len, 26);
+        assert_eq!(message.description.as_ref(), "Auto-generated test player");
+
+        // Serialize the message back into bytes
+        let mut buffer: Vec<u8> = Vec::new();
+        message
+            .serialize(&mut buffer)
+            .expect("Serialization failed");
+
+        // Assert that the serialized bytes match the original
+        assert_eq!(buffer, original_bytes);
+        assert_eq!(buffer[0], u8::from(type_byte));
+    }
+}
+////////////////////////////////////////////////////////////////////////////////

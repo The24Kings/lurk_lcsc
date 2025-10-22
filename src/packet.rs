@@ -85,6 +85,23 @@ pub mod version;
 /// ```
 pub trait Parser<'a>: Sized + 'a {
     /// Serializes the packet and writes it to the provided writer.
+    ///
+    /// ```no_run
+    /// use lurk_lcsc::{Parser, PktType};
+    /// use lurk_lcsc::PktVersion;
+    /// use std::io::Write;
+    ///
+    /// let packet = PktVersion {
+    ///    packet_type: PktType::VERSION,
+    ///    major_rev: 2,
+    ///    minor_rev: 3,
+    ///    extensions_len: 0,
+    ///    extensions: None,
+    /// };
+    ///
+    /// let mut buffer: Vec<u8> = Vec::new();
+    /// packet.serialize(&mut buffer).unwrap();
+    /// ```
     fn serialize<W: Write>(self, writer: &mut W) -> Result<(), std::io::Error>;
 
     /// Deserializes a Packet into the implementing type.
@@ -122,18 +139,7 @@ pub trait Parser<'a>: Sized + 'a {
 }
 
 /// Represents a network packet containing a reference to the TCP stream, packet type, and body.
-///
-/// ```no_run
-/// use std::net::TcpStream;
-/// use std::sync::Arc;
-/// use lurk_lcsc::pkt_type::PktType;
-/// use lurk_lcsc::packet::Packet;
-///
-/// let stream = Arc::new(TcpStream::connect("127.0.0.1:8080").unwrap());
-/// let packet_type = PktType::DEFAULT; // Replace with an actual variant
-/// let body = &[0u8; 32];
-/// let packet = Packet::new(&stream, packet_type, body);
-/// ```
+#[doc(hidden)]
 pub struct Packet<'a> {
     /// Reference to the TCP stream associated with this packet.
     pub stream: &'a Arc<TcpStream>,
@@ -145,8 +151,8 @@ pub struct Packet<'a> {
 
 impl<'a> Packet<'a> {
     /// Creates a new `Packet` from the given TCP stream, packet type, and byte slice.
-    /// - `bytes` - All bytes from the stream other than the initial type byte.
-    pub fn new(stream: &'a Arc<TcpStream>, packet_type: PktType, bytes: &'a [u8]) -> Self {
+    #[doc(hidden)]
+    pub(crate) fn new(stream: &'a Arc<TcpStream>, packet_type: PktType, bytes: &'a [u8]) -> Self {
         Packet {
             stream,
             packet_type,
