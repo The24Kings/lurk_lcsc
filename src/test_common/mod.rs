@@ -18,7 +18,7 @@ pub(crate) fn setup() -> Arc<TcpStream> {
             // Send the listener's address to the main thread
             tx.send(addr).expect("Failed to send address");
 
-            if let Ok(_) = listener.accept() {
+            if listener.accept().is_ok() {
                 println!("Server accepted connection");
             } else {
                 panic!("Failed to accept connection");
