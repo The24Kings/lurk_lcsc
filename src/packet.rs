@@ -1,5 +1,6 @@
+use std::io::ErrorKind::UnexpectedEof;
 use std::{
-    io::{Read, Write},
+    io::{Error, Read, Write},
     net::TcpStream,
     sync::Arc,
 };
@@ -44,8 +45,8 @@ pub mod version;
 ///
 /// ```no_run
 /// use lurk_lcsc::{Packet, Parser, PktType};
+/// use std::io::{Error, Write};
 /// use serde::Serialize;
-/// use std::io::Write;
 ///
 ///
 /// pub struct PktLoot {
@@ -54,7 +55,7 @@ pub mod version;
 ///}
 ///
 /// impl Parser<'_> for PktLoot {
-///     fn serialize<W: Write>(self, writer: &mut W) -> Result<(), std::io::Error> {
+///     fn serialize<W: Write>(self, writer: &mut W) -> Result<(), Error> {
 ///         // Package into a byte array
 ///         let mut packet: Vec<u8> = vec![self.message_type.into()];
 ///
@@ -65,7 +66,7 @@ pub mod version;
 ///         // Write the packet to the buffer
 ///         writer
 ///             .write_all(&packet)
-///             .map_err(|_| std::io::Error::other("Failed to write packet to buffer"))?;
+///             .map_err(|_| Error::other("Failed to write packet to buffer"))?;
 ///
 ///         Ok(())
 ///     }
@@ -102,7 +103,7 @@ pub trait Parser<'a>: Sized + 'a {
     /// let mut buffer: Vec<u8> = Vec::new();
     /// packet.serialize(&mut buffer).unwrap();
     /// ```
-    fn serialize<W: Write>(self, writer: &mut W) -> Result<(), std::io::Error>;
+    fn serialize<W: Write>(self, writer: &mut W) -> Result<(), Error>;
 
     /// Deserializes a Packet into the implementing type.
     ///
@@ -166,17 +167,15 @@ impl<'a> Packet<'a> {
         stream: &'b Arc<TcpStream>,
         packet_type: PktType,
         buffer: &'b mut [u8],
-    ) -> Result<Packet<'b>, std::io::Error> {
+    ) -> Result<Packet<'b>, Error> {
         // Read the remaining bytes for the packet
-        stream.as_ref().read_exact(buffer).map_err(|e| {
-            std::io::Error::new(
-                std::io::ErrorKind::UnexpectedEof,
-                format!("Failed to read packet body: {}", e),
-            )
-        })?;
+        stream
+            .as_ref()
+            .read_exact(buffer)
+            .map_err(|e| Error::new(UnexpectedEof, format!("Failed to read packet body: {}", e)))?;
 
         #[cfg(feature = "tracing")]
-        debug!("[DEBUG] Packet body:\n{}", PCap::build(buffer.to_vec()));
+        debug!("Packet body:\n{}", PCap::build(buffer.to_vec()));
 
         // Create a new packet with the read bytes
         let packet = Packet::new(stream, packet_type, buffer);
@@ -192,40 +191,30 @@ impl<'a> Packet<'a> {
         packet_type: PktType,
         buffer: &'b mut Vec<u8>,
         index: (usize, usize),
-    ) -> Result<Packet<'b>, std::io::Error> {
-        stream.as_ref().read_exact(buffer).map_err(|e| {
-            std::io::Error::new(
-                std::io::ErrorKind::UnexpectedEof,
-                format!("Failed to read packet body: {}", e),
-            )
-        })?;
+    ) -> Result<Packet<'b>, Error> {
+        stream
+            .as_ref()
+            .read_exact(buffer)
+            .map_err(|e| Error::new(UnexpectedEof, format!("Failed to read packet body: {}", e)))?;
 
         // Get the description length from the buffer
         let length = u16::from_le_bytes([buffer[index.0], buffer[index.1]]) as usize;
         let mut desc = vec![0u8; length];
 
         #[cfg(feature = "tracing")]
-        debug!(
-            "[PACKET] Reading description of length {} at index {}, {}",
-            length, index.0, index.1
-        );
+        debug!("Description len {}: ({}, {})", length, index.0, index.1);
 
         // Read the description from the stream
-        stream.as_ref().read_exact(&mut desc).map_err(|e| {
-            std::io::Error::new(
-                std::io::ErrorKind::UnexpectedEof,
-                format!("Failed to read descriptor: {}", e),
-            )
-        })?;
+        stream
+            .as_ref()
+            .read_exact(&mut desc)
+            .map_err(|e| Error::new(UnexpectedEof, format!("Failed to read descriptor: {}", e)))?;
 
         #[cfg(feature = "tracing")]
         if !desc.is_empty() {
-            debug!(
-                "[PACKET] Read description: {}",
-                String::from_utf8_lossy(&desc)
-            );
+            debug!("Read description: {}", String::from_utf8_lossy(&desc));
         } else {
-            debug!("[PACKET] Read empty description");
+            debug!("Read empty description");
         }
 
         // Extend the buffer with the description
