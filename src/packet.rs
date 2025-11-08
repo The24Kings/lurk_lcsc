@@ -9,6 +9,7 @@ use std::{
 use crate::pcap::PCap;
 #[cfg(feature = "tracing")]
 use tracing::debug;
+#[cfg(feature = "tracing")]
 use tracing::trace;
 
 use crate::pkt_type::PktType;
