@@ -1,6 +1,6 @@
 [package]
 name = "lurk_lcsc"
-version = "2.3.10"
+version = "2.3.11"
 authors = ["Riley Ziegler", "S. Seth Long, Ph.D"]
 categories = ["network-programming"]
 description = "LCSC LURK Protocol written in Rust"
