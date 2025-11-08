@@ -9,6 +9,7 @@ use std::{
 use crate::pcap::PCap;
 #[cfg(feature = "tracing")]
 use tracing::debug;
+use tracing::trace;
 
 use crate::pkt_type::PktType;
 
@@ -175,7 +176,7 @@ impl<'a> Packet<'a> {
             .map_err(|e| Error::new(UnexpectedEof, format!("Failed to read packet body: {}", e)))?;
 
         #[cfg(feature = "tracing")]
-        debug!("Packet body:\n{}", PCap::build(buffer.to_vec()));
+        trace!("Packet body:\n{}", PCap::build(buffer.to_vec()));
 
         // Create a new packet with the read bytes
         let packet = Packet::new(stream, packet_type, buffer);
