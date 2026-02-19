@@ -1,10 +1,10 @@
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use std::io::Write;
 
 use crate::packet::PktType;
 use crate::{Packet, Parser};
 
-#[derive(Serialize)]
+#[derive(Serialize, Deserialize)]
 /// Initiate a fight against monsters.
 ///
 /// - This will start a fight in the current room against the monsters which are presently in the room.
@@ -96,7 +96,7 @@ mod tests {
         let packet = Packet::new(&stream, type_byte, &[]);
 
         // Deserialize the packet into a PktFight
-        let message = PktFight::deserialize(packet);
+        let message = <PktFight as Parser>::deserialize(packet);
 
         // Assert the fields were parsed correctly
         assert_eq!(message.packet_type, PktType::FIGHT);

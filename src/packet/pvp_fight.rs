@@ -1,10 +1,10 @@
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use std::io::Write;
 
 use crate::packet::PktType;
 use crate::{Packet, Parser};
 
-#[derive(Serialize)]
+#[derive(Serialize, Deserialize)]
 /// Initiate a fight against another player.
 ///
 /// - The server will determine the results of the fight, and allocate damage and rewards appropriately.
@@ -112,7 +112,7 @@ mod tests {
         let packet = Packet::new(&stream, type_byte, &original_bytes[1..]);
 
         // Deserialize the packet into a PktPVPFight
-        let message = PktPVPFight::deserialize(packet);
+        let message = <PktPVPFight as Parser>::deserialize(packet);
 
         // Assert the fields were parsed correctly
         assert_eq!(message.packet_type, PktType::PVPFIGHT);

@@ -1,10 +1,10 @@
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use std::io::Write;
 
 use crate::packet::PktType;
 use crate::{Packet, Parser};
 
-#[derive(Serialize)]
+#[derive(Serialize, Deserialize)]
 /// Start playing the game.
 ///
 /// - A client will send a `PktType::CHARACTER` message to the server to explain character stats, which the server may either accept or deny (by use of an `PktType::ERROR` message).
@@ -89,7 +89,7 @@ mod tests {
         let packet = Packet::new(&stream, type_byte, &original_bytes[1..]);
 
         // Deserialize the packet into a PktStart
-        let message = PktStart::deserialize(packet);
+        let message = <PktStart as Parser>::deserialize(packet);
 
         // Assert the fields were parsed correctly
         assert_eq!(message.packet_type, PktType::START);

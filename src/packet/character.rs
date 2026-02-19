@@ -1,13 +1,12 @@
+use serde::{Deserialize, Serialize};
 use std::{io::Write, net::TcpStream, sync::Arc};
-
-use serde::Serialize;
 
 use crate::Packet;
 use crate::Parser;
 use crate::flags::CharacterFlags;
 use crate::packet::PktType;
 
-#[derive(Clone, Serialize)]
+#[derive(Clone, Serialize, Deserialize)]
 /// Sent by both the client and the server.
 ///
 /// - The server will send this message to show the client changes to their player's status, such as in health or gold.
@@ -20,7 +19,7 @@ use crate::packet::PktType;
 /// - The client will use this message to set the name, description, attack, defense, regen, and flags when the character is created.
 /// - It can also be used to reprise an abandoned or deceased character.
 pub struct PktCharacter {
-    #[serde(skip_serializing)]
+    #[serde(skip)]
     /// The TCP stream associated with the author of the packet, if available.
     pub author: Option<Arc<TcpStream>>,
     /// The type of message for the `CHARACTER` packet. Default is 10.
@@ -195,7 +194,7 @@ mod tests {
         let packet = Packet::new(&stream, type_byte, &original_bytes[1..]);
 
         // Deserialize the packet into a PktCharacter
-        let message = PktCharacter::deserialize(packet);
+        let message = <PktCharacter as Parser>::deserialize(packet);
 
         // Assert the fields were parsed correctly
         assert_eq!(message.packet_type, PktType::CHARACTER);

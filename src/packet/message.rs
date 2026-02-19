@@ -1,10 +1,10 @@
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use std::io::Write;
 
 use crate::packet::PktType;
 use crate::{Packet, Parser};
 
-#[derive(Serialize)]
+#[derive(Serialize, Deserialize)]
 /// Sent by the client to message other players.
 ///
 /// - Can also be used by the server to send "presentable" information to the client (information that can be displayed to the user with no further processing).
@@ -188,7 +188,7 @@ mod tests {
         let packet = Packet::new(&stream, type_byte, &original_bytes[1..]);
 
         // Deserialize the packet into a PktMessage
-        let message = PktMessage::deserialize(packet);
+        let message = <PktMessage as Parser>::deserialize(packet);
 
         // Assert the fields were parsed correctly
         assert_eq!(message.packet_type, PktType::MESSAGE);
