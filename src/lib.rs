@@ -88,8 +88,6 @@
     clippy::unnested_or_patterns,
     // clippy bug: https://github.com/rust-lang/rust-clippy/issues/7768
     clippy::semicolon_if_nothing_returned,
-    // not available in our oldest supported compiler
-    clippy::empty_enum,
     clippy::type_repetition_in_bounds, // https://github.com/rust-lang/rust-clippy/issues/8772
     clippy::cast_possible_wrap,
     clippy::cast_precision_loss,

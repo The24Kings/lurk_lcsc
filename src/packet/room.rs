@@ -1,10 +1,10 @@
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use std::io::Write;
 
 use crate::packet::PktType;
 use crate::{Packet, Parser};
 
-#[derive(Serialize)]
+#[derive(Serialize, Deserialize)]
 /// Sent by the server to describe the room that the player is in.
 ///
 /// - This should be an expected response to `PktType::CHANGEROOM` or `PktType::START`.
@@ -125,7 +125,7 @@ mod tests {
         let packet = Packet::new(&stream, type_byte, &original_bytes[1..]);
 
         // Deserialize the packet into a PktRoom
-        let message = PktRoom::deserialize(packet);
+        let message = <PktRoom as Parser>::deserialize(packet);
 
         // Assert the fields were parsed correctly
         assert_eq!(message.packet_type, PktType::ROOM);

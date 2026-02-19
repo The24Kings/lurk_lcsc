@@ -1,4 +1,4 @@
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use std::io::Write;
 #[cfg(feature = "tracing")]
 use tracing::error;
@@ -10,7 +10,7 @@ use crate::{Packet, Parser};
 /// Notify the client of an error.
 ///
 /// This is used to indicate stat violations, inappropriate room connections, attempts to loot nonexistent or living players, attempts to attack players or monsters in different rooms, etc.
-#[derive(Serialize)]
+#[derive(Serialize, Deserialize)]
 pub struct PktError {
     /// The type of message for the `ERROR` packet. Defaults to 7.
     pub packet_type: PktType,
@@ -121,7 +121,7 @@ mod tests {
         let packet = Packet::new(&stream, type_byte, &original_bytes[1..]);
 
         // Deserialize the packet into a PktError
-        let message = PktError::deserialize(packet);
+        let message = <PktError as Parser>::deserialize(packet);
 
         // Assert the fields were parsed correctly
         assert_eq!(message.packet_type, PktType::ERROR);

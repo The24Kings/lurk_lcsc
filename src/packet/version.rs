@@ -1,10 +1,10 @@
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use std::io::Write;
 
 use crate::packet::PktType;
 use crate::{Packet, Parser};
 
-#[derive(Serialize)]
+#[derive(Serialize, Deserialize)]
 /// Sent by the server upon initial connection along with `PktType::GAME`.
 pub struct PktVersion {
     /// The type of message for the `VERSION` packet. Defaults to 14.
@@ -111,7 +111,7 @@ mod tests {
         let packet = Packet::new(&stream, type_byte, &original_bytes[1..]);
 
         // Deserialize the packet into a PktVersion
-        let message = PktVersion::deserialize(packet);
+        let message = <PktVersion as Parser>::deserialize(packet);
 
         // Assert the fields were parsed correctly
         assert_eq!(message.packet_type, PktType::VERSION);

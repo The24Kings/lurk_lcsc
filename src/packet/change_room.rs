@@ -1,4 +1,4 @@
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use std::io::Write;
 
 use crate::packet::PktType;
@@ -8,7 +8,7 @@ use crate::{Packet, Parser};
 ///
 /// If the server changes the room a client is in, it should send an updated room, character, and connection message(s) to explain the new location.
 /// If not, for example because the client is not ready to start or specified an inappropriate choice, and error should be sent.
-#[derive(Serialize)]
+#[derive(Serialize, Deserialize)]
 pub struct PktChangeRoom {
     /// The type of message for the `CHANGEROOM` packet. Default is 2.
     pub packet_type: PktType,
@@ -106,7 +106,7 @@ mod tests {
         let packet = Packet::new(&stream, type_byte, &original_bytes[1..]);
 
         // Deserialize the packet into a PktChangeRoom
-        let message = PktChangeRoom::deserialize(packet);
+        let message = <PktChangeRoom as Parser>::deserialize(packet);
 
         // Assert the fields were parsed correctly
         assert_eq!(message.packet_type, PktType::CHANGEROOM);

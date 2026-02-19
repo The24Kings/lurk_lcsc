@@ -1,10 +1,10 @@
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use std::io::Write;
 
 use crate::packet::PktType;
 use crate::{Packet, Parser};
 
-#[derive(Serialize)]
+#[derive(Serialize, Deserialize)]
 /// Used by the server to describe the game.
 ///
 /// - The initial points is a combination of health, defense, and regen, and cannot be exceeded by the client when defining a new character.
@@ -115,7 +115,7 @@ mod tests {
         let packet = Packet::new(&stream, type_byte, &original_bytes[1..]);
 
         // Deserialize the packet into a PktGame
-        let message = PktGame::deserialize(packet);
+        let message = <PktGame as Parser>::deserialize(packet);
 
         // Assert the fields were parsed correctly
         assert_eq!(message.packet_type, PktType::GAME);

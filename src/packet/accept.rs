@@ -1,13 +1,13 @@
 use crate::pkt_type::PktType;
 use crate::{Packet, Parser};
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use std::io::Write;
 
 /// Sent by the server to acknowledge a non-error-causing action which has no other direct result.
 ///
 /// This is not needed for actions which cause other results, such as changing rooms or beginning a fight.
 /// It should be sent in response to clients sending messages, setting character stats, etc.
-#[derive(Serialize)]
+#[derive(Serialize, Deserialize)]
 pub struct PktAccept {
     /// The type of message for the `ACCEPT` packet. Default is 8.
     pub packet_type: PktType,
@@ -96,7 +96,7 @@ mod tests {
         let packet = Packet::new(&stream, type_byte, &original_bytes[1..]);
 
         // Deserialize the packet into a PktAccept
-        let message = PktAccept::deserialize(packet);
+        let message = <PktAccept as Parser>::deserialize(packet);
 
         // Assert the fields were parsed correctly
         assert_eq!(message.packet_type, PktType::ACCEPT);

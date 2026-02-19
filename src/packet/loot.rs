@@ -1,11 +1,11 @@
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use std::io::Write;
 
 use crate::packet::PktType;
 use crate::{Packet, Parser};
 
 /// Represents a loot packet containing the message type and target name.
-#[derive(Serialize)]
+#[derive(Serialize, Deserialize)]
 pub struct PktLoot {
     /// The type of the packet message.
     pub packet_type: PktType,
@@ -104,7 +104,7 @@ mod tests {
         let packet = Packet::new(&stream, type_byte, &original_bytes[1..]);
 
         // Deserialize the packet into a PktLoot
-        let message = PktLoot::deserialize(packet);
+        let message = <PktLoot as Parser>::deserialize(packet);
 
         // Assert the fields were parsed correctly
         assert_eq!(message.packet_type, PktType::LOOT);

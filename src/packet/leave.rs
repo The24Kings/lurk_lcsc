@@ -1,10 +1,10 @@
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use std::io::Write;
 
 use crate::packet::PktType;
 use crate::{Packet, Parser};
 
-#[derive(Serialize)]
+#[derive(Serialize, Deserialize)]
 /// Used by the client to leave the game. This is a graceful way to disconnect. The server never terminates, so it doesn't send `PktType::LEAVE`.
 pub struct PktLeave {
     /// The type of message for the `LEAVE` packet. Defaults to 12.
@@ -85,7 +85,7 @@ mod tests {
         let packet = Packet::new(&stream, type_byte, &[]);
 
         // Deserialize the packet into a PktLeave
-        let message = PktLeave::deserialize(packet);
+        let message = <PktLeave as Parser>::deserialize(packet);
 
         // Assert the fields were parsed correctly
         assert_eq!(message.packet_type, PktType::LEAVE);

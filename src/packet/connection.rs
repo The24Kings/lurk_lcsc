@@ -1,10 +1,10 @@
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use std::io::Write;
 
 use crate::packet::PktType;
 use crate::{Packet, Parser};
 
-#[derive(Serialize)]
+#[derive(Serialize, Deserialize)]
 /// Used by the server to describe rooms connected to the room the player is in.
 ///
 /// - The client should expect a series of these when changing rooms, but they may be sent at any time.
@@ -131,7 +131,7 @@ mod tests {
         let packet = Packet::new(&stream, type_byte, &original_bytes[1..]);
 
         // Deserialize the packet into a PktConnection
-        let message = PktConnection::deserialize(packet);
+        let message = <PktConnection as Parser>::deserialize(packet);
 
         // Assert the fields were parsed correctly
         assert_eq!(message.packet_type, PktType::CONNECTION);
