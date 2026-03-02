@@ -136,9 +136,9 @@ impl Parser<'_> for PktMessage {
         let mut s_bytes = packet.body[34..66].to_vec();
 
         // If the last 2 bytes of the sender is 0x00 0x01, it means the sender is a narrator
-        let narration = match s_bytes.get(32..34) {
+        let narration = match s_bytes.get(30..32) {
             Some(&[0x00, 0x01]) => {
-                s_bytes.truncate(32); // Remove the last 2 bytes
+                s_bytes.truncate(30); // Remove the narration marker bytes
                 true
             }
             _ => false,
@@ -207,6 +207,248 @@ mod tests {
         // Assert that the serialized bytes match the original
         assert_eq!(buffer, original_bytes);
         assert_eq!(buffer[0], u8::from(type_byte));
+    }
+
+    /// Parse trace message: Player2 -> Player1 "Sup".
+    #[test]
+    fn message_parse_trace_player2_to_player1() {
+        let stream = test_common::setup();
+        let mut body: Vec<u8> = Vec::new();
+        body.extend(3u16.to_le_bytes()); // message_len = 3
+        let mut recipient = b"Player1".to_vec();
+        recipient.resize(32, 0x00);
+        body.extend(&recipient);
+        let mut sender = b"Player2".to_vec();
+        sender.resize(32, 0x00);
+        body.extend(&sender);
+        body.extend(b"Sup");
+
+        let packet = Packet::new(&stream, PktType::MESSAGE, &body);
+        let msg = <PktMessage as Parser>::deserialize(packet);
+
+        assert_eq!(msg.message_len, 3);
+        assert_eq!(msg.recipient.as_ref(), "Player1");
+        assert_eq!(msg.sender.as_ref(), "Player2");
+        assert!(!msg.narration);
+        assert_eq!(msg.message.as_ref(), "Sup");
+    }
+
+    /// Parse trace message: Server -> Player1 "Player1 has started the game!".
+    #[test]
+    fn message_parse_trace_server_notification() {
+        let stream = test_common::setup();
+        let msg_text = "Player1 has started the game!";
+        let mut body: Vec<u8> = Vec::new();
+        body.extend((msg_text.len() as u16).to_le_bytes());
+        let mut recipient = b"Player1".to_vec();
+        recipient.resize(32, 0x00);
+        body.extend(&recipient);
+        let mut sender = b"Server".to_vec();
+        sender.resize(32, 0x00);
+        body.extend(&sender);
+        body.extend(msg_text.as_bytes());
+
+        let packet = Packet::new(&stream, PktType::MESSAGE, &body);
+        let msg = <PktMessage as Parser>::deserialize(packet);
+
+        assert_eq!(msg.recipient.as_ref(), "Player1");
+        assert_eq!(msg.sender.as_ref(), "Server");
+        assert!(!msg.narration);
+        assert_eq!(msg.message.as_ref(), msg_text);
+    }
+
+    /// PktMessage::server helper constructs correctly.
+    #[test]
+    fn message_server_helper() {
+        let msg = PktMessage::server("Player1", "Welcome!");
+        assert_eq!(msg.packet_type, PktType::MESSAGE);
+        assert_eq!(msg.recipient.as_ref(), "Player1");
+        assert_eq!(msg.sender.as_ref(), "Server");
+        assert!(!msg.narration);
+        assert_eq!(msg.message.as_ref(), "Welcome!");
+        assert_eq!(msg.message_len, 8);
+    }
+
+    /// PktMessage::narrator helper constructs correctly.
+    #[test]
+    fn message_narrator_helper() {
+        let msg = PktMessage::narrator("Player1", "You enter a dark cave.");
+        assert_eq!(msg.packet_type, PktType::MESSAGE);
+        assert_eq!(msg.recipient.as_ref(), "Player1");
+        assert_eq!(msg.sender.as_ref(), "Narrator");
+        assert!(msg.narration);
+        assert_eq!(msg.message.as_ref(), "You enter a dark cave.");
+    }
+
+    /// Narration flag: serialize with narration=true, verify the 0x00 0x01 marker.
+    #[test]
+    fn message_narration_roundtrip() {
+        let stream = test_common::setup();
+        let msg = PktMessage::narrator("Player1", "A tale of old.");
+
+        let mut buffer: Vec<u8> = Vec::new();
+        msg.serialize(&mut buffer).expect("Serialization failed");
+
+        // Check the narration marker bytes at end of sender field (bytes 35..67, sender is at 35+30=65,66)
+        // Sender occupies bytes 35..67 in the full packet (including type byte at 0)
+        // In the buffer: type(1) + msg_len(2) + recipient(32) + sender(30+2) + message
+        // Check that the sender region has 0x00, 0x01 at positions 65, 66 (0-indexed from buffer start)
+        assert_eq!(buffer[65], 0x00);
+        assert_eq!(buffer[66], 0x01);
+
+        // Deserialize and verify
+        let packet = Packet::new(&stream, PktType::MESSAGE, &buffer[1..]);
+        let deserialized = <PktMessage as Parser>::deserialize(packet);
+        assert!(deserialized.narration);
+        assert_eq!(deserialized.sender.as_ref(), "Narrator");
+    }
+
+    /// Non-narration message should not have the marker.
+    #[test]
+    fn message_non_narration_roundtrip() {
+        let stream = test_common::setup();
+        let msg = PktMessage::server("Player1", "Hello.");
+
+        let mut buffer: Vec<u8> = Vec::new();
+        msg.serialize(&mut buffer).expect("Serialization failed");
+
+        let packet = Packet::new(&stream, PktType::MESSAGE, &buffer[1..]);
+        let deserialized = <PktMessage as Parser>::deserialize(packet);
+        assert!(!deserialized.narration);
+        assert_eq!(deserialized.sender.as_ref(), "Server");
+        assert_eq!(deserialized.message.as_ref(), "Hello.");
+    }
+
+    /// Empty message text.
+    #[test]
+    fn message_empty_text() {
+        let stream = test_common::setup();
+        let msg = PktMessage::server("Player1", "");
+
+        let mut buffer: Vec<u8> = Vec::new();
+        msg.serialize(&mut buffer).expect("Serialization failed");
+
+        let packet = Packet::new(&stream, PktType::MESSAGE, &buffer[1..]);
+        let deserialized = <PktMessage as Parser>::deserialize(packet);
+        assert_eq!(deserialized.message_len, 0);
+        assert_eq!(deserialized.message.as_ref(), "");
+    }
+
+    /// Long message text.
+    #[test]
+    fn message_long_text() {
+        let stream = test_common::setup();
+        let long_text = "X".repeat(5000);
+        let msg = PktMessage::server("Player1", &long_text);
+
+        let mut buffer: Vec<u8> = Vec::new();
+        msg.serialize(&mut buffer).expect("Serialization failed");
+
+        let packet = Packet::new(&stream, PktType::MESSAGE, &buffer[1..]);
+        let deserialized = <PktMessage as Parser>::deserialize(packet);
+        assert_eq!(deserialized.message_len, 5000);
+        assert_eq!(deserialized.message.len(), 5000);
+    }
+
+    /// Max-length recipient name (32 bytes, no padding).
+    #[test]
+    fn message_max_length_recipient() {
+        let stream = test_common::setup();
+        let long_name = "R".repeat(32);
+        let msg = PktMessage {
+            packet_type: PktType::MESSAGE,
+            message_len: 2,
+            recipient: Box::from(long_name.as_str()),
+            sender: Box::from("Server"),
+            narration: false,
+            message: Box::from("Hi"),
+        };
+
+        let mut buffer: Vec<u8> = Vec::new();
+        msg.serialize(&mut buffer).expect("Serialization failed");
+
+        let packet = Packet::new(&stream, PktType::MESSAGE, &buffer[1..]);
+        let deserialized = <PktMessage as Parser>::deserialize(packet);
+        assert_eq!(deserialized.recipient.as_ref(), &long_name);
+    }
+
+    /// Body too short should panic.
+    #[test]
+    #[should_panic]
+    fn message_body_too_short_panics() {
+        let stream = test_common::setup();
+        let body: &[u8] = &[0x00, 0x00, 0x41]; // Only 3 bytes, need at least 66
+        let packet = Packet::new(&stream, PktType::MESSAGE, body);
+        let _ = <PktMessage as Parser>::deserialize(packet);
+    }
+
+    /// Empty body should panic.
+    #[test]
+    #[should_panic]
+    fn message_empty_body_panics() {
+        let stream = test_common::setup();
+        let body: &[u8] = &[];
+        let packet = Packet::new(&stream, PktType::MESSAGE, body);
+        let _ = <PktMessage as Parser>::deserialize(packet);
+    }
+
+    /// All-zero 66-byte body should parse without panic.
+    #[test]
+    fn message_all_zeros_body() {
+        let stream = test_common::setup();
+        let body: Vec<u8> = vec![0x00; 66];
+        let packet = Packet::new(&stream, PktType::MESSAGE, &body);
+        let msg = <PktMessage as Parser>::deserialize(packet);
+
+        assert_eq!(msg.message_len, 0);
+        assert_eq!(msg.recipient.as_ref(), "");
+        assert_eq!(msg.sender.as_ref(), "");
+        assert!(!msg.narration);
+    }
+
+    /// All-0xFF 66-byte body should parse without panic.
+    #[test]
+    fn message_all_ones_body() {
+        let stream = test_common::setup();
+        let body: Vec<u8> = vec![0xFF; 66];
+        let packet = Packet::new(&stream, PktType::MESSAGE, &body);
+        let msg = <PktMessage as Parser>::deserialize(packet);
+
+        assert_eq!(msg.message_len, u16::MAX);
+        // Recipient and sender will contain replacement chars for invalid UTF-8
+        assert!(!msg.recipient.is_empty());
+        assert!(!msg.sender.is_empty());
+    }
+
+    /// Non-UTF8 bytes in recipient/sender should use lossy conversion.
+    #[test]
+    fn message_non_utf8_names() {
+        let stream = test_common::setup();
+        let mut body: Vec<u8> = Vec::new();
+        body.extend(0u16.to_le_bytes()); // message_len
+        let mut recipient = vec![0xFF, 0xFE, 0xFD];
+        recipient.resize(32, 0x00);
+        body.extend(&recipient);
+        let mut sender = vec![0xFC, 0xFB, 0xFA];
+        sender.resize(32, 0x00);
+        body.extend(&sender);
+
+        let packet = Packet::new(&stream, PktType::MESSAGE, &body);
+        let msg = <PktMessage as Parser>::deserialize(packet);
+
+        assert!(msg.recipient.contains('\u{FFFD}'));
+        assert!(msg.sender.contains('\u{FFFD}'));
+    }
+
+    /// Display/JSON output should be valid JSON.
+    #[test]
+    fn message_display_valid_json() {
+        let msg = PktMessage::server("Player1", "Hello!");
+        let json_str = format!("{}", msg);
+        let parsed: serde_json::Value = serde_json::from_str(&json_str).expect("Invalid JSON");
+        assert_eq!(parsed["recipient"], "Player1");
+        assert_eq!(parsed["sender"], "Server");
+        assert_eq!(parsed["message"], "Hello!");
     }
 }
 ////////////////////////////////////////////////////////////////////////////////

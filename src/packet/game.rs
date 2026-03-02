@@ -134,5 +134,203 @@ mod tests {
         assert_eq!(buffer, original_bytes);
         assert_eq!(buffer[0], u8::from(type_byte));
     }
+
+    /// Parse from real ZeldaServer trace: initial_points=100, stat_limit=65535.
+    #[test]
+    fn game_parse_trace_bytes() {
+        let stream = test_common::setup();
+        // Construct body: initial_points=100 (0x64,0x00), stat_limit=65535 (0xFF,0xFF),
+        // description_len=11 (0x0B,0x00), description="Hello World"
+        let mut body: Vec<u8> = vec![0x64, 0x00, 0xFF, 0xFF, 0x0B, 0x00];
+        body.extend(b"Hello World");
+        let packet = Packet::new(&stream, PktType::GAME, &body);
+        let game = <PktGame as Parser>::deserialize(packet);
+
+        assert_eq!(game.initial_points, 100);
+        assert_eq!(game.stat_limit, 65535);
+        assert_eq!(game.description_len, 11);
+        assert_eq!(game.description.as_ref(), "Hello World");
+    }
+
+    /// Empty description should parse correctly.
+    #[test]
+    fn game_empty_description() {
+        let stream = test_common::setup();
+        let body: &[u8] = &[0x64, 0x00, 0xFF, 0xFF, 0x00, 0x00];
+        let packet = Packet::new(&stream, PktType::GAME, body);
+        let game = <PktGame as Parser>::deserialize(packet);
+
+        assert_eq!(game.initial_points, 100);
+        assert_eq!(game.stat_limit, 65535);
+        assert_eq!(game.description_len, 0);
+        assert_eq!(game.description.as_ref(), "");
+    }
+
+    /// Max u16 initial_points and stat_limit values.
+    #[test]
+    fn game_max_u16_values() {
+        let stream = test_common::setup();
+        let body: &[u8] = &[0xFF, 0xFF, 0xFF, 0xFF, 0x00, 0x00];
+        let packet = Packet::new(&stream, PktType::GAME, body);
+        let game = <PktGame as Parser>::deserialize(packet);
+
+        assert_eq!(game.initial_points, u16::MAX);
+        assert_eq!(game.stat_limit, u16::MAX);
+    }
+
+    /// Zero initial_points and zero stat_limit.
+    #[test]
+    fn game_zero_values() {
+        let stream = test_common::setup();
+        let body: &[u8] = &[0x00, 0x00, 0x00, 0x00, 0x00, 0x00];
+        let packet = Packet::new(&stream, PktType::GAME, body);
+        let game = <PktGame as Parser>::deserialize(packet);
+
+        assert_eq!(game.initial_points, 0);
+        assert_eq!(game.stat_limit, 0);
+        assert_eq!(game.description_len, 0);
+    }
+
+    /// Roundtrip: serialize then deserialize and verify fields.
+    #[test]
+    fn game_roundtrip() {
+        let stream = test_common::setup();
+        let original = PktGame {
+            packet_type: PktType::GAME,
+            initial_points: 200,
+            stat_limit: 1000,
+            description_len: 12,
+            description: Box::from("A cool game!"),
+        };
+
+        let mut buffer: Vec<u8> = Vec::new();
+        original
+            .serialize(&mut buffer)
+            .expect("Serialization failed");
+
+        let packet = Packet::new(&stream, PktType::GAME, &buffer[1..]);
+        let deserialized = <PktGame as Parser>::deserialize(packet);
+
+        assert_eq!(deserialized.initial_points, 200);
+        assert_eq!(deserialized.stat_limit, 1000);
+        assert_eq!(deserialized.description_len, 12);
+        assert_eq!(deserialized.description.as_ref(), "A cool game!");
+    }
+
+    /// Long description to stress test parsing.
+    #[test]
+    fn game_long_description() {
+        let stream = test_common::setup();
+        let desc = "A".repeat(5000);
+        let desc_len = desc.len() as u16;
+        let mut body: Vec<u8> = vec![0x64, 0x00, 0xFF, 0xFF];
+        body.extend(desc_len.to_le_bytes());
+        body.extend(desc.as_bytes());
+        let packet = Packet::new(&stream, PktType::GAME, &body);
+        let game = <PktGame as Parser>::deserialize(packet);
+
+        assert_eq!(game.description_len, 5000);
+        assert_eq!(game.description.len(), 5000);
+    }
+
+    /// Non-UTF8 bytes should be handled by lossy conversion.
+    #[test]
+    fn game_non_utf8_description() {
+        let stream = test_common::setup();
+        let mut body: Vec<u8> = vec![0x64, 0x00, 0xFF, 0xFF, 0x04, 0x00];
+        body.extend(&[0xFF, 0xFE, 0xFD, 0xFC]); // invalid UTF-8
+        let packet = Packet::new(&stream, PktType::GAME, &body);
+        let game = <PktGame as Parser>::deserialize(packet);
+
+        assert_eq!(game.description_len, 4);
+        // Should contain replacement characters
+        assert!(game.description.contains('\u{FFFD}'));
+    }
+
+    /// Body too short for header fields should panic.
+    #[test]
+    #[should_panic]
+    fn game_body_too_short_panics() {
+        let stream = test_common::setup();
+        let body: &[u8] = &[0x64, 0x00]; // Only 2 bytes, need at least 6
+        let packet = Packet::new(&stream, PktType::GAME, body);
+        let _ = <PktGame as Parser>::deserialize(packet);
+    }
+
+    /// Empty body should panic.
+    #[test]
+    #[should_panic]
+    fn game_empty_body_panics() {
+        let stream = test_common::setup();
+        let body: &[u8] = &[];
+        let packet = Packet::new(&stream, PktType::GAME, body);
+        let _ = <PktGame as Parser>::deserialize(packet);
+    }
+
+    /// All 0xFF body should parse without panic.
+    #[test]
+    fn game_all_ones_body() {
+        let stream = test_common::setup();
+        let body: &[u8] = &[0xFF, 0xFF, 0xFF, 0xFF, 0x00, 0x00];
+        let packet = Packet::new(&stream, PktType::GAME, body);
+        let game = <PktGame as Parser>::deserialize(packet);
+
+        assert_eq!(game.initial_points, 65535);
+        assert_eq!(game.stat_limit, 65535);
+    }
+
+    /// All 0x00 body should parse without panic.
+    #[test]
+    fn game_all_zeros_body() {
+        let stream = test_common::setup();
+        let body: &[u8] = &[0x00, 0x00, 0x00, 0x00, 0x00, 0x00];
+        let packet = Packet::new(&stream, PktType::GAME, body);
+        let game = <PktGame as Parser>::deserialize(packet);
+
+        assert_eq!(game.initial_points, 0);
+        assert_eq!(game.stat_limit, 0);
+        assert_eq!(game.description_len, 0);
+        assert_eq!(game.description.as_ref(), "");
+    }
+
+    /// Display/JSON output should be valid JSON.
+    #[test]
+    fn game_display_valid_json() {
+        let game = PktGame {
+            packet_type: PktType::GAME,
+            initial_points: 100,
+            stat_limit: 65535,
+            description_len: 4,
+            description: Box::from("Test"),
+        };
+        let json_str = format!("{}", game);
+        let parsed: serde_json::Value = serde_json::from_str(&json_str).expect("Invalid JSON");
+        assert_eq!(parsed["initial_points"], 100);
+        assert_eq!(parsed["stat_limit"], 65535);
+    }
+
+    /// Description with special characters (newlines, unicode).
+    #[test]
+    fn game_special_chars_description() {
+        let stream = test_common::setup();
+        let desc = "Hello\nWorld\t€£¥";
+        let original = PktGame {
+            packet_type: PktType::GAME,
+            initial_points: 100,
+            stat_limit: 65535,
+            description_len: desc.len() as u16,
+            description: Box::from(desc),
+        };
+
+        let mut buffer: Vec<u8> = Vec::new();
+        original
+            .serialize(&mut buffer)
+            .expect("Serialization failed");
+
+        let packet = Packet::new(&stream, PktType::GAME, &buffer[1..]);
+        let deserialized = <PktGame as Parser>::deserialize(packet);
+
+        assert_eq!(deserialized.description.as_ref(), desc);
+    }
 }
 ////////////////////////////////////////////////////////////////////////////////

@@ -120,5 +120,121 @@ mod tests {
         assert_eq!(buffer, original_bytes);
         assert_eq!(buffer[0], u8::from(type_byte));
     }
+
+    /// Parse from trace: loot target "Deku Baba".
+    #[test]
+    fn loot_parse_trace_deku_baba() {
+        let stream = test_common::setup();
+        let mut body: Vec<u8> = Vec::new();
+        let mut name = b"Deku Baba".to_vec();
+        name.resize(32, 0x00);
+        body.extend(&name);
+
+        let packet = Packet::new(&stream, PktType::LOOT, &body);
+        let loot = <PktLoot as Parser>::deserialize(packet);
+
+        assert_eq!(loot.target_name.as_ref(), "Deku Baba");
+    }
+
+    /// PktLoot::loot helper constructs correctly.
+    #[test]
+    fn loot_helper() {
+        let loot = PktLoot::loot("Monster");
+        assert_eq!(loot.packet_type, PktType::LOOT);
+        assert_eq!(loot.target_name.as_ref(), "Monster");
+    }
+
+    /// Empty target name.
+    #[test]
+    fn loot_empty_name() {
+        let stream = test_common::setup();
+        let body: Vec<u8> = vec![0x00; 32];
+        let packet = Packet::new(&stream, PktType::LOOT, &body);
+        let loot = <PktLoot as Parser>::deserialize(packet);
+
+        assert_eq!(loot.target_name.as_ref(), "");
+    }
+
+    /// Max-length target name (32 bytes).
+    #[test]
+    fn loot_max_length_name() {
+        let stream = test_common::setup();
+        let long_name = "M".repeat(32);
+        let body: Vec<u8> = long_name.as_bytes().to_vec();
+        let packet = Packet::new(&stream, PktType::LOOT, &body);
+        let loot = <PktLoot as Parser>::deserialize(packet);
+
+        assert_eq!(loot.target_name.as_ref(), &long_name);
+    }
+
+    /// Roundtrip.
+    #[test]
+    fn loot_roundtrip() {
+        let stream = test_common::setup();
+        let original = PktLoot::loot("DragonBoss");
+
+        let mut buffer: Vec<u8> = Vec::new();
+        original
+            .serialize(&mut buffer)
+            .expect("Serialization failed");
+
+        assert_eq!(buffer.len(), 33); // type(1) + name(32)
+
+        let packet = Packet::new(&stream, PktType::LOOT, &buffer[1..]);
+        let deserialized = <PktLoot as Parser>::deserialize(packet);
+        assert_eq!(deserialized.target_name.as_ref(), "DragonBoss");
+    }
+
+    /// Non-UTF8 name.
+    #[test]
+    fn loot_non_utf8_name() {
+        let stream = test_common::setup();
+        let mut body = vec![0xFF, 0xFE, 0xFD];
+        body.resize(32, 0x00);
+        let packet = Packet::new(&stream, PktType::LOOT, &body);
+        let loot = <PktLoot as Parser>::deserialize(packet);
+
+        assert!(loot.target_name.contains('\u{FFFD}'));
+    }
+
+    /// Body too short should panic.
+    #[test]
+    #[should_panic]
+    fn loot_body_too_short_panics() {
+        let stream = test_common::setup();
+        let body: &[u8] = &[0x41, 0x42]; // Only 2 bytes, need 32
+        let packet = Packet::new(&stream, PktType::LOOT, body);
+        let _ = <PktLoot as Parser>::deserialize(packet);
+    }
+
+    /// Empty body should panic.
+    #[test]
+    #[should_panic]
+    fn loot_empty_body_panics() {
+        let stream = test_common::setup();
+        let body: &[u8] = &[];
+        let packet = Packet::new(&stream, PktType::LOOT, body);
+        let _ = <PktLoot as Parser>::deserialize(packet);
+    }
+
+    /// All 0xFF body.
+    #[test]
+    fn loot_all_ones_body() {
+        let stream = test_common::setup();
+        let body: Vec<u8> = vec![0xFF; 32];
+        let packet = Packet::new(&stream, PktType::LOOT, &body);
+        let loot = <PktLoot as Parser>::deserialize(packet);
+
+        assert!(!loot.target_name.is_empty());
+    }
+
+    /// Display/JSON output should be valid JSON.
+    #[test]
+    fn loot_display_valid_json() {
+        let loot = PktLoot::loot("Goblin");
+        let json_str = format!("{}", loot);
+        let parsed: serde_json::Value = serde_json::from_str(&json_str).expect("Invalid JSON");
+        assert_eq!(parsed["target_name"], "Goblin");
+    }
 }
 ////////////////////////////////////////////////////////////////////////////////

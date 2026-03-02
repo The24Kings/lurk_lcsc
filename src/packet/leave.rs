@@ -100,5 +100,57 @@ mod tests {
         assert_eq!(buffer, original_bytes);
         assert_eq!(buffer[0], u8::from(type_byte));
     }
+
+    /// Default constructor should set correct packet type.
+    #[test]
+    fn leave_default() {
+        let leave = PktLeave::default();
+        assert_eq!(leave.packet_type, PktType::LEAVE);
+    }
+
+    /// Serialized output is exactly 1 byte.
+    #[test]
+    fn leave_serialize_length() {
+        let leave = PktLeave::default();
+        let mut buffer: Vec<u8> = Vec::new();
+        leave.serialize(&mut buffer).expect("Serialization failed");
+        assert_eq!(buffer.len(), 1);
+        assert_eq!(buffer[0], 0x0c);
+    }
+
+    /// Roundtrip: serialize then deserialize.
+    #[test]
+    fn leave_roundtrip() {
+        let stream = test_common::setup();
+        let original = PktLeave::default();
+
+        let mut buffer: Vec<u8> = Vec::new();
+        original
+            .serialize(&mut buffer)
+            .expect("Serialization failed");
+
+        let packet = Packet::new(&stream, PktType::LEAVE, &[]);
+        let deserialized = <PktLeave as Parser>::deserialize(packet);
+        assert_eq!(deserialized.packet_type, PktType::LEAVE);
+    }
+
+    /// Deserialize with extra body bytes should still work.
+    #[test]
+    fn leave_extra_body_bytes() {
+        let stream = test_common::setup();
+        let body: &[u8] = &[0xFF, 0xFF];
+        let packet = Packet::new(&stream, PktType::LEAVE, body);
+        let leave = <PktLeave as Parser>::deserialize(packet);
+        assert_eq!(leave.packet_type, PktType::LEAVE);
+    }
+
+    /// Display/JSON output should be valid JSON.
+    #[test]
+    fn leave_display_valid_json() {
+        let leave = PktLeave::default();
+        let json_str = format!("{}", leave);
+        let parsed: serde_json::Value = serde_json::from_str(&json_str).expect("Invalid JSON");
+        assert_eq!(parsed["packet_type"], "LEAVE");
+    }
 }
 ////////////////////////////////////////////////////////////////////////////////

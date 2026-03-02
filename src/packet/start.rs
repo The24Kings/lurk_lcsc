@@ -104,5 +104,57 @@ mod tests {
         assert_eq!(buffer, original_bytes);
         assert_eq!(buffer[0], u8::from(type_byte));
     }
+
+    /// Default constructor should set correct packet type.
+    #[test]
+    fn start_default() {
+        let start = PktStart::default();
+        assert_eq!(start.packet_type, PktType::START);
+    }
+
+    /// Serialized output is exactly 1 byte.
+    #[test]
+    fn start_serialize_length() {
+        let start = PktStart::default();
+        let mut buffer: Vec<u8> = Vec::new();
+        start.serialize(&mut buffer).expect("Serialization failed");
+        assert_eq!(buffer.len(), 1);
+        assert_eq!(buffer[0], 0x06);
+    }
+
+    /// Roundtrip: serialize then deserialize.
+    #[test]
+    fn start_roundtrip() {
+        let stream = test_common::setup();
+        let original = PktStart::default();
+
+        let mut buffer: Vec<u8> = Vec::new();
+        original
+            .serialize(&mut buffer)
+            .expect("Serialization failed");
+
+        let packet = Packet::new(&stream, PktType::START, &[]);
+        let deserialized = <PktStart as Parser>::deserialize(packet);
+        assert_eq!(deserialized.packet_type, PktType::START);
+    }
+
+    /// Deserialize with extra body bytes should still work.
+    #[test]
+    fn start_extra_body_bytes() {
+        let stream = test_common::setup();
+        let body: &[u8] = &[0xFF, 0xFF];
+        let packet = Packet::new(&stream, PktType::START, body);
+        let start = <PktStart as Parser>::deserialize(packet);
+        assert_eq!(start.packet_type, PktType::START);
+    }
+
+    /// Display/JSON output should be valid JSON.
+    #[test]
+    fn start_display_valid_json() {
+        let start = PktStart::default();
+        let json_str = format!("{}", start);
+        let parsed: serde_json::Value = serde_json::from_str(&json_str).expect("Invalid JSON");
+        assert_eq!(parsed["packet_type"], "START");
+    }
 }
 ////////////////////////////////////////////////////////////////////////////////

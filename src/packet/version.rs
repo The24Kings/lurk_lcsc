@@ -130,5 +130,182 @@ mod tests {
         assert_eq!(buffer, original_bytes);
         assert_eq!(buffer[0], u8::from(type_byte));
     }
+
+    /// Verify parsing the exact bytes captured from the ZeldaServer trace output.
+    #[test]
+    fn version_parse_trace_bytes() {
+        let stream = test_common::setup();
+        // From trace: 0e 02 03 00 00
+        let body: &[u8] = &[0x02, 0x03, 0x00, 0x00];
+        let packet = Packet::new(&stream, PktType::VERSION, body);
+        let ver = <PktVersion as Parser>::deserialize(packet);
+
+        assert_eq!(ver.major_rev, 2);
+        assert_eq!(ver.minor_rev, 3);
+        assert_eq!(ver.extensions_len, 0);
+        assert!(ver.extensions.is_none());
+    }
+
+    /// Max u8 values for major and minor revision numbers.
+    #[test]
+    fn version_max_revisions() {
+        let stream = test_common::setup();
+        let body: &[u8] = &[0xFF, 0xFF, 0x00, 0x00];
+        let packet = Packet::new(&stream, PktType::VERSION, body);
+        let ver = <PktVersion as Parser>::deserialize(packet);
+
+        assert_eq!(ver.major_rev, 255);
+        assert_eq!(ver.minor_rev, 255);
+    }
+
+    /// Zero major and minor revisions.
+    #[test]
+    fn version_zero_revisions() {
+        let stream = test_common::setup();
+        let body: &[u8] = &[0x00, 0x00, 0x00, 0x00];
+        let packet = Packet::new(&stream, PktType::VERSION, body);
+        let ver = <PktVersion as Parser>::deserialize(packet);
+
+        assert_eq!(ver.major_rev, 0);
+        assert_eq!(ver.minor_rev, 0);
+    }
+
+    /// Serialize with extensions included and verify output.
+    #[test]
+    fn version_serialize_with_extensions() {
+        let ver = PktVersion {
+            packet_type: PktType::VERSION,
+            major_rev: 2,
+            minor_rev: 3,
+            extensions_len: 5,
+            extensions: Some(vec![0x05, 0x00, 0x41, 0x42, 0x43]),
+        };
+
+        let mut buffer: Vec<u8> = Vec::new();
+        ver.serialize(&mut buffer).expect("Serialization failed");
+
+        // Type(1) + major(1) + minor(1) + ext_len(2) + extensions(5) = 10
+        assert_eq!(buffer.len(), 10);
+        assert_eq!(buffer[0], 0x0e); // VERSION type
+        assert_eq!(buffer[1], 0x02);
+        assert_eq!(buffer[2], 0x03);
+        assert_eq!(buffer[3], 0x05); // extensions_len low byte
+        assert_eq!(buffer[4], 0x00); // extensions_len high byte
+        assert_eq!(&buffer[5..], &[0x05, 0x00, 0x41, 0x42, 0x43]);
+    }
+
+    /// Serialize with no extensions and verify compact output.
+    #[test]
+    fn version_serialize_no_extensions() {
+        let ver = PktVersion {
+            packet_type: PktType::VERSION,
+            major_rev: 1,
+            minor_rev: 0,
+            extensions_len: 0,
+            extensions: None,
+        };
+
+        let mut buffer: Vec<u8> = Vec::new();
+        ver.serialize(&mut buffer).expect("Serialization failed");
+
+        assert_eq!(buffer.len(), 5);
+        assert_eq!(buffer, &[0x0e, 0x01, 0x00, 0x00, 0x00]);
+    }
+
+    /// Roundtrip: construct, serialize, then deserialize and verify equality.
+    #[test]
+    fn version_roundtrip() {
+        let stream = test_common::setup();
+        let original = PktVersion {
+            packet_type: PktType::VERSION,
+            major_rev: 10,
+            minor_rev: 42,
+            extensions_len: 0,
+            extensions: None,
+        };
+
+        let mut buffer: Vec<u8> = Vec::new();
+        original
+            .serialize(&mut buffer)
+            .expect("Serialization failed");
+
+        let packet = Packet::new(&stream, PktType::VERSION, &buffer[1..]);
+        let deserialized = <PktVersion as Parser>::deserialize(packet);
+
+        assert_eq!(deserialized.major_rev, 10);
+        assert_eq!(deserialized.minor_rev, 42);
+    }
+
+    /// Body with extra trailing bytes should still parse correctly (only first bytes used).
+    #[test]
+    fn version_extra_trailing_bytes() {
+        let stream = test_common::setup();
+        let body: &[u8] = &[0x02, 0x03, 0x00, 0x00, 0xFF, 0xFF, 0xFF];
+        let packet = Packet::new(&stream, PktType::VERSION, body);
+        let ver = <PktVersion as Parser>::deserialize(packet);
+
+        assert_eq!(ver.major_rev, 2);
+        assert_eq!(ver.minor_rev, 3);
+    }
+
+    /// Too-short body should panic during deserialization (index out of bounds).
+    #[test]
+    #[should_panic]
+    fn version_body_too_short_panics() {
+        let stream = test_common::setup();
+        let body: &[u8] = &[0x02]; // Only 1 byte, need at least 2
+        let packet = Packet::new(&stream, PktType::VERSION, body);
+        let _ = <PktVersion as Parser>::deserialize(packet);
+    }
+
+    /// Empty body should panic during deserialization.
+    #[test]
+    #[should_panic]
+    fn version_empty_body_panics() {
+        let stream = test_common::setup();
+        let body: &[u8] = &[];
+        let packet = Packet::new(&stream, PktType::VERSION, body);
+        let _ = <PktVersion as Parser>::deserialize(packet);
+    }
+
+    /// All 0xFF bytes in body.
+    #[test]
+    fn version_all_ones_body() {
+        let stream = test_common::setup();
+        let body: &[u8] = &[0xFF, 0xFF, 0xFF, 0xFF];
+        let packet = Packet::new(&stream, PktType::VERSION, body);
+        let ver = <PktVersion as Parser>::deserialize(packet);
+
+        assert_eq!(ver.major_rev, 255);
+        assert_eq!(ver.minor_rev, 255);
+    }
+
+    /// All 0x00 bytes in body.
+    #[test]
+    fn version_all_zeros_body() {
+        let stream = test_common::setup();
+        let body: &[u8] = &[0x00, 0x00, 0x00, 0x00];
+        let packet = Packet::new(&stream, PktType::VERSION, body);
+        let ver = <PktVersion as Parser>::deserialize(packet);
+
+        assert_eq!(ver.major_rev, 0);
+        assert_eq!(ver.minor_rev, 0);
+    }
+
+    /// Display/JSON output should be valid JSON.
+    #[test]
+    fn version_display_valid_json() {
+        let ver = PktVersion {
+            packet_type: PktType::VERSION,
+            major_rev: 2,
+            minor_rev: 3,
+            extensions_len: 0,
+            extensions: None,
+        };
+        let json_str = format!("{}", ver);
+        let parsed: serde_json::Value = serde_json::from_str(&json_str).expect("Invalid JSON");
+        assert_eq!(parsed["major_rev"], 2);
+        assert_eq!(parsed["minor_rev"], 3);
+    }
 }
 ////////////////////////////////////////////////////////////////////////////////
