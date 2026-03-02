@@ -218,5 +218,471 @@ mod tests {
         assert_eq!(buffer, original_bytes);
         assert_eq!(buffer[0], u8::from(type_byte));
     }
+
+    /// Parse a character with ALIVE | BATTLE | READY flags (from trace: Test initial).
+    #[test]
+    fn character_parse_trace_alive_battle_ready() {
+        let stream = test_common::setup();
+        // Character "Test" with flags=0xC8 (ALIVE|BATTLE|READY), attack=33, defense=33, regen=34,
+        // health=0, gold=0, room=0, desc_len=0, no description
+        let mut body: Vec<u8> = Vec::new();
+        // Name: "Test" padded to 32 bytes
+        let mut name = b"Test".to_vec();
+        name.resize(32, 0x00);
+        body.extend(&name);
+        body.push(0xC8); // flags: ALIVE(0x80) | BATTLE(0x40) | READY(0x08)
+        body.extend(33u16.to_le_bytes()); // attack
+        body.extend(33u16.to_le_bytes()); // defense
+        body.extend(34u16.to_le_bytes()); // regen
+        body.extend(0i16.to_le_bytes()); // health
+        body.extend(0u16.to_le_bytes()); // gold
+        body.extend(0u16.to_le_bytes()); // current_room
+        body.extend(0u16.to_le_bytes()); // description_len
+
+        let packet = Packet::new(&stream, PktType::CHARACTER, &body);
+        let chr = <PktCharacter as Parser>::deserialize(packet);
+
+        assert_eq!(chr.name.as_ref(), "Test");
+        assert!(chr.flags.contains(CharacterFlags::ALIVE));
+        assert!(chr.flags.contains(CharacterFlags::BATTLE));
+        assert!(chr.flags.contains(CharacterFlags::READY));
+        assert!(!chr.flags.contains(CharacterFlags::STARTED));
+        assert!(!chr.flags.contains(CharacterFlags::MONSTER));
+        assert_eq!(chr.attack, 33);
+        assert_eq!(chr.defense, 33);
+        assert_eq!(chr.regen, 34);
+        assert_eq!(chr.health, 0);
+        assert_eq!(chr.gold, 0);
+        assert_eq!(chr.current_room, 0);
+        assert_eq!(chr.description_len, 0);
+        assert_eq!(chr.description.as_ref(), "");
+    }
+
+    /// Parse a character with ALIVE | BATTLE | STARTED | READY flags (from trace: Test started).
+    #[test]
+    fn character_parse_trace_started() {
+        let stream = test_common::setup();
+        let mut body: Vec<u8> = Vec::new();
+        let mut name = b"Test".to_vec();
+        name.resize(32, 0x00);
+        body.extend(&name);
+        body.push(0xD8); // flags: ALIVE(0x80) | BATTLE(0x40) | STARTED(0x10) | READY(0x08)
+        body.extend(33u16.to_le_bytes());
+        body.extend(33u16.to_le_bytes());
+        body.extend(34u16.to_le_bytes());
+        body.extend(100i16.to_le_bytes()); // health = 100
+        body.extend(0u16.to_le_bytes());
+        body.extend(0u16.to_le_bytes());
+        body.extend(0u16.to_le_bytes());
+
+        let packet = Packet::new(&stream, PktType::CHARACTER, &body);
+        let chr = <PktCharacter as Parser>::deserialize(packet);
+
+        assert!(chr.flags.contains(CharacterFlags::ALIVE));
+        assert!(chr.flags.contains(CharacterFlags::BATTLE));
+        assert!(chr.flags.contains(CharacterFlags::STARTED));
+        assert!(chr.flags.contains(CharacterFlags::READY));
+        assert_eq!(chr.health, 100);
+    }
+
+    /// Parse a monster character from trace bytes (Deku Baba, alive).
+    #[test]
+    fn character_parse_trace_monster_alive() {
+        let stream = test_common::setup();
+        let mut body: Vec<u8> = Vec::new();
+        let mut name = b"Deku Baba".to_vec();
+        name.resize(32, 0x00);
+        body.extend(&name);
+        body.push(0xE8); // ALIVE(0x80) | BATTLE(0x40) | MONSTER(0x20) | READY(0x08)
+        body.extend(3u16.to_le_bytes()); // attack
+        body.extend(1u16.to_le_bytes()); // defense
+        body.extend(0u16.to_le_bytes()); // regen
+        body.extend(8i16.to_le_bytes()); // health
+        body.extend(2u16.to_le_bytes()); // gold
+        body.extend(0u16.to_le_bytes()); // current_room
+        let desc = "A snapping plant that lunges when approached. Can drop Deku sticks or nuts when defeated.";
+        body.extend((desc.len() as u16).to_le_bytes());
+        body.extend(desc.as_bytes());
+
+        let packet = Packet::new(&stream, PktType::CHARACTER, &body);
+        let chr = <PktCharacter as Parser>::deserialize(packet);
+
+        assert_eq!(chr.name.as_ref(), "Deku Baba");
+        assert!(chr.flags.contains(CharacterFlags::ALIVE));
+        assert!(chr.flags.contains(CharacterFlags::BATTLE));
+        assert!(chr.flags.contains(CharacterFlags::MONSTER));
+        assert!(chr.flags.contains(CharacterFlags::READY));
+        assert_eq!(chr.attack, 3);
+        assert_eq!(chr.defense, 1);
+        assert_eq!(chr.regen, 0);
+        assert_eq!(chr.health, 8);
+        assert_eq!(chr.gold, 2);
+        assert_eq!(chr.description.as_ref(), desc);
+    }
+
+    /// Parse a dead monster from trace: negative health.
+    #[test]
+    fn character_parse_trace_monster_dead() {
+        let stream = test_common::setup();
+        let mut body: Vec<u8> = Vec::new();
+        let mut name = b"Deku Baba".to_vec();
+        name.resize(32, 0x00);
+        body.extend(&name);
+        body.push(0x68); // BATTLE(0x40) | MONSTER(0x20) | READY(0x08) -- no ALIVE
+        body.extend(3u16.to_le_bytes());
+        body.extend(1u16.to_le_bytes());
+        body.extend(0u16.to_le_bytes());
+        body.extend((-57i16).to_le_bytes()); // negative health
+        body.extend(2u16.to_le_bytes());
+        body.extend(0u16.to_le_bytes());
+        let desc = "A snapping plant that lunges when approached. Can drop Deku sticks or nuts when defeated.";
+        body.extend((desc.len() as u16).to_le_bytes());
+        body.extend(desc.as_bytes());
+
+        let packet = Packet::new(&stream, PktType::CHARACTER, &body);
+        let chr = <PktCharacter as Parser>::deserialize(packet);
+
+        assert!(!chr.flags.contains(CharacterFlags::ALIVE));
+        assert!(chr.flags.contains(CharacterFlags::MONSTER));
+        assert_eq!(chr.health, -57);
+    }
+
+    /// Character with max stat values.
+    #[test]
+    fn character_max_stats() {
+        let stream = test_common::setup();
+        let mut body: Vec<u8> = Vec::new();
+        let mut name = b"MaxStats".to_vec();
+        name.resize(32, 0x00);
+        body.extend(&name);
+        body.push(0xFF); // All flag bits set
+        body.extend(u16::MAX.to_le_bytes()); // attack
+        body.extend(u16::MAX.to_le_bytes()); // defense
+        body.extend(u16::MAX.to_le_bytes()); // regen
+        body.extend(i16::MAX.to_le_bytes()); // health
+        body.extend(u16::MAX.to_le_bytes()); // gold
+        body.extend(u16::MAX.to_le_bytes()); // current_room
+        body.extend(0u16.to_le_bytes()); // description_len
+
+        let packet = Packet::new(&stream, PktType::CHARACTER, &body);
+        let chr = <PktCharacter as Parser>::deserialize(packet);
+
+        assert_eq!(chr.attack, u16::MAX);
+        assert_eq!(chr.defense, u16::MAX);
+        assert_eq!(chr.regen, u16::MAX);
+        assert_eq!(chr.health, i16::MAX);
+        assert_eq!(chr.gold, u16::MAX);
+        assert_eq!(chr.current_room, u16::MAX);
+    }
+
+    /// Character with minimum (negative) health.
+    #[test]
+    fn character_min_health() {
+        let stream = test_common::setup();
+        let mut body: Vec<u8> = Vec::new();
+        let mut name = b"MinHP".to_vec();
+        name.resize(32, 0x00);
+        body.extend(&name);
+        body.push(0x00); // no flags
+        body.extend(0u16.to_le_bytes());
+        body.extend(0u16.to_le_bytes());
+        body.extend(0u16.to_le_bytes());
+        body.extend(i16::MIN.to_le_bytes()); // -32768
+        body.extend(0u16.to_le_bytes());
+        body.extend(0u16.to_le_bytes());
+        body.extend(0u16.to_le_bytes());
+
+        let packet = Packet::new(&stream, PktType::CHARACTER, &body);
+        let chr = <PktCharacter as Parser>::deserialize(packet);
+
+        assert_eq!(chr.health, i16::MIN);
+    }
+
+    /// Character with all zero stats.
+    #[test]
+    fn character_all_zeros() {
+        let stream = test_common::setup();
+        let body: Vec<u8> = vec![0x00; 47]; // 32 name + 1 flags + 14 stats = 47
+
+        let packet = Packet::new(&stream, PktType::CHARACTER, &body);
+        let chr = <PktCharacter as Parser>::deserialize(packet);
+
+        assert_eq!(chr.name.as_ref(), "");
+        assert!(chr.flags.is_empty());
+        assert_eq!(chr.attack, 0);
+        assert_eq!(chr.defense, 0);
+        assert_eq!(chr.regen, 0);
+        assert_eq!(chr.health, 0);
+        assert_eq!(chr.gold, 0);
+        assert_eq!(chr.current_room, 0);
+        assert_eq!(chr.description_len, 0);
+    }
+
+    /// Character name that fills all 32 bytes (no null terminator padding).
+    #[test]
+    fn character_max_length_name() {
+        let stream = test_common::setup();
+        let long_name = "A".repeat(32);
+        let mut body: Vec<u8> = Vec::new();
+        body.extend(long_name.as_bytes());
+        body.push(0xC8);
+        body.extend(10u16.to_le_bytes());
+        body.extend(10u16.to_le_bytes());
+        body.extend(10u16.to_le_bytes());
+        body.extend(100i16.to_le_bytes());
+        body.extend(50u16.to_le_bytes());
+        body.extend(1u16.to_le_bytes());
+        body.extend(0u16.to_le_bytes());
+
+        let packet = Packet::new(&stream, PktType::CHARACTER, &body);
+        let chr = <PktCharacter as Parser>::deserialize(packet);
+
+        assert_eq!(chr.name.as_ref(), &long_name);
+    }
+
+    /// Roundtrip: construct, serialize, then deserialize and verify.
+    #[test]
+    fn character_roundtrip() {
+        let stream = test_common::setup();
+        let original = PktCharacter {
+            author: None,
+            packet_type: PktType::CHARACTER,
+            name: Arc::from("TestHero"),
+            flags: CharacterFlags::ALIVE
+                | CharacterFlags::BATTLE
+                | CharacterFlags::STARTED
+                | CharacterFlags::READY,
+            attack: 50,
+            defense: 25,
+            regen: 25,
+            health: 100,
+            gold: 42,
+            current_room: 7,
+            description_len: 11,
+            description: Box::from("A test hero"),
+        };
+
+        let mut buffer: Vec<u8> = Vec::new();
+        original
+            .serialize(&mut buffer)
+            .expect("Serialization failed");
+
+        let packet = Packet::new(&stream, PktType::CHARACTER, &buffer[1..]);
+        let deserialized = <PktCharacter as Parser>::deserialize(packet);
+
+        assert_eq!(deserialized.name.as_ref(), "TestHero");
+        assert_eq!(
+            deserialized.flags,
+            CharacterFlags::ALIVE
+                | CharacterFlags::BATTLE
+                | CharacterFlags::STARTED
+                | CharacterFlags::READY
+        );
+        assert_eq!(deserialized.attack, 50);
+        assert_eq!(deserialized.defense, 25);
+        assert_eq!(deserialized.regen, 25);
+        assert_eq!(deserialized.health, 100);
+        assert_eq!(deserialized.gold, 42);
+        assert_eq!(deserialized.current_room, 7);
+        assert_eq!(deserialized.description.as_ref(), "A test hero");
+    }
+
+    /// Non-UTF8 bytes in name should be handled by lossy conversion.
+    #[test]
+    fn character_non_utf8_name() {
+        let stream = test_common::setup();
+        let mut body: Vec<u8> = Vec::new();
+        let mut name = vec![0xFF, 0xFE, 0xFD, 0xFC];
+        name.resize(32, 0x00);
+        body.extend(&name);
+        body.push(0x00);
+        body.extend(vec![0u8; 14]); // stats
+
+        let packet = Packet::new(&stream, PktType::CHARACTER, &body);
+        let chr = <PktCharacter as Parser>::deserialize(packet);
+
+        // Should contain replacement characters
+        assert!(chr.name.contains('\u{FFFD}'));
+    }
+
+    /// Body that is too short to parse stats should panic.
+    #[test]
+    #[should_panic]
+    fn character_body_too_short_panics() {
+        let stream = test_common::setup();
+        let body: &[u8] = &[0x41; 20]; // Only 20 bytes, need at least 47
+        let packet = Packet::new(&stream, PktType::CHARACTER, body);
+        let _ = <PktCharacter as Parser>::deserialize(packet);
+    }
+
+    /// Empty body should panic.
+    #[test]
+    #[should_panic]
+    fn character_empty_body_panics() {
+        let stream = test_common::setup();
+        let body: &[u8] = &[];
+        let packet = Packet::new(&stream, PktType::CHARACTER, body);
+        let _ = <PktCharacter as Parser>::deserialize(packet);
+    }
+
+    /// Verify CharacterFlags helper methods work.
+    #[test]
+    fn character_flags_helpers() {
+        let alive = CharacterFlags::alive();
+        assert!(alive.is_alive());
+        assert!(alive.is_battle());
+        assert!(alive.is_ready());
+        assert!(!alive.is_started());
+
+        let dead = CharacterFlags::dead();
+        assert!(!dead.is_alive());
+        assert!(dead.is_battle());
+        assert!(dead.is_ready());
+
+        let reset = CharacterFlags::reset();
+        assert!(reset.is_alive());
+        assert!(reset.is_battle());
+        assert!(!reset.is_ready());
+        assert!(!reset.is_started());
+    }
+
+    /// Verify with_defaults_from resets health, gold, room, and flags correctly.
+    #[test]
+    fn character_with_defaults_from() {
+        let incoming = PktCharacter {
+            author: None,
+            packet_type: PktType::CHARACTER,
+            name: Arc::from("Player1"),
+            flags: CharacterFlags::ALIVE
+                | CharacterFlags::BATTLE
+                | CharacterFlags::STARTED
+                | CharacterFlags::READY,
+            attack: 50,
+            defense: 25,
+            regen: 25,
+            health: 999,
+            gold: 999,
+            current_room: 42,
+            description_len: 0,
+            description: Box::from(""),
+        };
+
+        let defaulted = PktCharacter::with_defaults_from(&incoming);
+        assert_eq!(defaulted.name.as_ref(), "Player1");
+        assert_eq!(defaulted.attack, 50);
+        assert_eq!(defaulted.defense, 25);
+        assert_eq!(defaulted.regen, 25);
+        assert_eq!(defaulted.health, 100);
+        assert_eq!(defaulted.gold, 0);
+        assert_eq!(defaulted.current_room, 0);
+        assert_eq!(defaulted.flags, CharacterFlags::reset());
+    }
+
+    /// All 0xFF body should parse with truncated flags.
+    #[test]
+    fn character_all_ones_body() {
+        let stream = test_common::setup();
+        let body: Vec<u8> = vec![0xFF; 47];
+
+        let packet = Packet::new(&stream, PktType::CHARACTER, &body);
+        let chr = <PktCharacter as Parser>::deserialize(packet);
+
+        // Flags are truncated to known bits
+        assert!(chr.flags.contains(CharacterFlags::ALIVE));
+        assert!(chr.flags.contains(CharacterFlags::BATTLE));
+        assert!(chr.flags.contains(CharacterFlags::MONSTER));
+        assert!(chr.flags.contains(CharacterFlags::STARTED));
+        assert!(chr.flags.contains(CharacterFlags::READY));
+
+        assert_eq!(chr.attack, u16::MAX);
+        assert_eq!(chr.defense, u16::MAX);
+        assert_eq!(chr.regen, u16::MAX);
+        assert_eq!(chr.health, -1); // 0xFFFF as i16
+        assert_eq!(chr.gold, u16::MAX);
+        assert_eq!(chr.current_room, u16::MAX);
+    }
+
+    /// Display/JSON output should be valid JSON.
+    #[test]
+    fn character_display_valid_json() {
+        let chr = PktCharacter {
+            author: None,
+            packet_type: PktType::CHARACTER,
+            name: Arc::from("TestChar"),
+            flags: CharacterFlags::ALIVE | CharacterFlags::BATTLE,
+            attack: 10,
+            defense: 10,
+            regen: 10,
+            health: 100,
+            gold: 0,
+            current_room: 0,
+            description_len: 0,
+            description: Box::from(""),
+        };
+        let json_str = format!("{}", chr);
+        let parsed: serde_json::Value = serde_json::from_str(&json_str).expect("Invalid JSON");
+        assert_eq!(parsed["name"], "TestChar");
+        assert_eq!(parsed["attack"], 10);
+    }
+
+    /// Verify health underflow at i16 boundary values.
+    #[test]
+    fn character_health_boundary_values() {
+        let stream = test_common::setup();
+
+        for &health in &[
+            0i16,
+            1,
+            -1,
+            100,
+            -100,
+            i16::MAX,
+            i16::MIN,
+            i16::MIN + 1,
+            i16::MAX - 1,
+        ] {
+            let mut body: Vec<u8> = Vec::new();
+            let mut name = b"BoundaryTest".to_vec();
+            name.resize(32, 0x00);
+            body.extend(&name);
+            body.push(0x00);
+            body.extend(0u16.to_le_bytes()); // attack
+            body.extend(0u16.to_le_bytes()); // defense
+            body.extend(0u16.to_le_bytes()); // regen
+            body.extend(health.to_le_bytes());
+            body.extend(0u16.to_le_bytes()); // gold
+            body.extend(0u16.to_le_bytes()); // room
+            body.extend(0u16.to_le_bytes()); // desc_len
+
+            let packet = Packet::new(&stream, PktType::CHARACTER, &body);
+            let chr = <PktCharacter as Parser>::deserialize(packet);
+            assert_eq!(chr.health, health, "Failed for health value: {}", health);
+        }
+    }
+
+    /// Gold at various u16 boundary values.
+    #[test]
+    fn character_gold_boundary_values() {
+        let stream = test_common::setup();
+
+        for &gold in &[0u16, 1, 100, 1000, u16::MAX, u16::MAX - 1] {
+            let mut body: Vec<u8> = Vec::new();
+            let mut name = b"GoldTest".to_vec();
+            name.resize(32, 0x00);
+            body.extend(&name);
+            body.push(0x00);
+            body.extend(0u16.to_le_bytes());
+            body.extend(0u16.to_le_bytes());
+            body.extend(0u16.to_le_bytes());
+            body.extend(0i16.to_le_bytes());
+            body.extend(gold.to_le_bytes());
+            body.extend(0u16.to_le_bytes());
+            body.extend(0u16.to_le_bytes());
+
+            let packet = Packet::new(&stream, PktType::CHARACTER, &body);
+            let chr = <PktCharacter as Parser>::deserialize(packet);
+            assert_eq!(chr.gold, gold, "Failed for gold value: {}", gold);
+        }
+    }
 }
 ////////////////////////////////////////////////////////////////////////////////

@@ -111,5 +111,57 @@ mod tests {
         assert_eq!(buffer, original_bytes);
         assert_eq!(buffer[0], u8::from(type_byte));
     }
+
+    /// Default constructor should set correct packet type.
+    #[test]
+    fn fight_default() {
+        let fight = PktFight::default();
+        assert_eq!(fight.packet_type, PktType::FIGHT);
+    }
+
+    /// Serialized output is exactly 1 byte.
+    #[test]
+    fn fight_serialize_length() {
+        let fight = PktFight::default();
+        let mut buffer: Vec<u8> = Vec::new();
+        fight.serialize(&mut buffer).expect("Serialization failed");
+        assert_eq!(buffer.len(), 1);
+        assert_eq!(buffer[0], 0x03);
+    }
+
+    /// Roundtrip: serialize then deserialize.
+    #[test]
+    fn fight_roundtrip() {
+        let stream = test_common::setup();
+        let original = PktFight::default();
+
+        let mut buffer: Vec<u8> = Vec::new();
+        original
+            .serialize(&mut buffer)
+            .expect("Serialization failed");
+
+        let packet = Packet::new(&stream, PktType::FIGHT, &[]);
+        let deserialized = <PktFight as Parser>::deserialize(packet);
+        assert_eq!(deserialized.packet_type, PktType::FIGHT);
+    }
+
+    /// Deserialize with extra body bytes should still work (body is ignored).
+    #[test]
+    fn fight_extra_body_bytes() {
+        let stream = test_common::setup();
+        let body: &[u8] = &[0xFF, 0xFF, 0xFF];
+        let packet = Packet::new(&stream, PktType::FIGHT, body);
+        let fight = <PktFight as Parser>::deserialize(packet);
+        assert_eq!(fight.packet_type, PktType::FIGHT);
+    }
+
+    /// Display/JSON output should be valid JSON.
+    #[test]
+    fn fight_display_valid_json() {
+        let fight = PktFight::default();
+        let json_str = format!("{}", fight);
+        let parsed: serde_json::Value = serde_json::from_str(&json_str).expect("Invalid JSON");
+        assert_eq!(parsed["packet_type"], "FIGHT");
+    }
 }
 ////////////////////////////////////////////////////////////////////////////////
