@@ -139,7 +139,7 @@ impl Protocol {
     /// // Send the packet to connected user
     /// Protocol::Message(stream.clone(), pkt_message).send().unwrap();
     /// ```
-    pub fn send(self) -> Result<(), std::io::Error> {
+    pub fn send(&self) -> Result<(), std::io::Error> {
         let mut byte_stream: Vec<u8> = Vec::new();
 
         #[cfg(feature = "tracing")]
@@ -148,59 +148,59 @@ impl Protocol {
         // Serialize the packet and send it to the server
         let author = match self {
             Protocol::Message(author, content) => {
-                content.serialize(&mut byte_stream)?;
+                content.write_to(&mut byte_stream)?;
                 author
             }
             Protocol::ChangeRoom(author, content) => {
-                content.serialize(&mut byte_stream)?;
+                content.write_to(&mut byte_stream)?;
                 author
             }
             Protocol::Fight(author, content) => {
-                content.serialize(&mut byte_stream)?;
+                content.write_to(&mut byte_stream)?;
                 author
             }
             Protocol::PVPFight(author, content) => {
-                content.serialize(&mut byte_stream)?;
+                content.write_to(&mut byte_stream)?;
                 author
             }
             Protocol::Loot(author, content) => {
-                content.serialize(&mut byte_stream)?;
+                content.write_to(&mut byte_stream)?;
                 author
             }
             Protocol::Start(author, content) => {
-                content.serialize(&mut byte_stream)?;
+                content.write_to(&mut byte_stream)?;
                 author
             }
             Protocol::Error(author, content) => {
-                content.serialize(&mut byte_stream)?;
+                content.write_to(&mut byte_stream)?;
                 author
             }
             Protocol::Accept(author, content) => {
-                content.serialize(&mut byte_stream)?;
+                content.write_to(&mut byte_stream)?;
                 author
             }
             Protocol::Room(author, content) => {
-                content.serialize(&mut byte_stream)?;
+                content.write_to(&mut byte_stream)?;
                 author
             }
             Protocol::Character(author, content) => {
-                content.serialize(&mut byte_stream)?;
+                content.write_to(&mut byte_stream)?;
                 author
             }
             Protocol::Game(author, content) => {
-                content.serialize(&mut byte_stream)?;
+                content.write_to(&mut byte_stream)?;
                 author
             }
             Protocol::Leave(author, content) => {
-                content.serialize(&mut byte_stream)?;
+                content.write_to(&mut byte_stream)?;
                 author
             }
             Protocol::Connection(author, content) => {
-                content.serialize(&mut byte_stream)?;
+                content.write_to(&mut byte_stream)?;
                 author
             }
             Protocol::Version(author, content) => {
-                content.serialize(&mut byte_stream)?;
+                content.write_to(&mut byte_stream)?;
                 author
             }
         };
@@ -257,10 +257,7 @@ impl Protocol {
 
                 let pkt = Packet::read_extended(stream, packet_type, &mut buffer, (0, 1))?;
 
-                Ok(Protocol::Message(
-                    stream.clone(),
-                    PktMessage::deserialize(pkt),
-                ))
+                Ok(Protocol::Message(stream.clone(), PktMessage::decode(pkt)))
             }
             PktType::CHANGEROOM => {
                 let mut buffer = vec![0; 2];
@@ -269,7 +266,7 @@ impl Protocol {
 
                 Ok(Protocol::ChangeRoom(
                     stream.clone(),
-                    PktChangeRoom::deserialize(packet),
+                    PktChangeRoom::decode(packet),
                 ))
             }
             PktType::FIGHT => Ok(Protocol::Fight(stream.clone(), PktFight::default())),
@@ -280,7 +277,7 @@ impl Protocol {
 
                 Ok(Protocol::PVPFight(
                     stream.clone(),
-                    PktPVPFight::deserialize(packet),
+                    PktPVPFight::decode(packet),
                 ))
             }
             PktType::LOOT => {
@@ -288,7 +285,7 @@ impl Protocol {
 
                 let packet = Packet::read_into(stream, packet_type, &mut buffer)?;
 
-                Ok(Protocol::Loot(stream.clone(), PktLoot::deserialize(packet)))
+                Ok(Protocol::Loot(stream.clone(), PktLoot::decode(packet)))
             }
             PktType::START => Ok(Protocol::Start(stream.clone(), PktStart::default())),
             PktType::ERROR => {
@@ -296,27 +293,21 @@ impl Protocol {
 
                 let packet = Packet::read_extended(stream, packet_type, &mut buffer, (1, 2))?;
 
-                Ok(Protocol::Error(
-                    stream.clone(),
-                    PktError::deserialize(packet),
-                ))
+                Ok(Protocol::Error(stream.clone(), PktError::decode(packet)))
             }
             PktType::ACCEPT => {
                 let mut buffer = vec![0; 1];
 
                 let packet = Packet::read_into(stream, packet_type, &mut buffer)?;
 
-                Ok(Protocol::Accept(
-                    stream.clone(),
-                    PktAccept::deserialize(packet),
-                ))
+                Ok(Protocol::Accept(stream.clone(), PktAccept::decode(packet)))
             }
             PktType::ROOM => {
                 let mut buffer = vec![0; 36];
 
                 let packet = Packet::read_extended(stream, packet_type, &mut buffer, (34, 35))?;
 
-                Ok(Protocol::Room(stream.clone(), PktRoom::deserialize(packet)))
+                Ok(Protocol::Room(stream.clone(), PktRoom::decode(packet)))
             }
             PktType::CHARACTER => {
                 let mut buffer = vec![0; 47];
@@ -325,7 +316,7 @@ impl Protocol {
 
                 Ok(Protocol::Character(
                     stream.clone(),
-                    PktCharacter::deserialize(packet),
+                    PktCharacter::decode(packet),
                 ))
             }
             PktType::GAME => {
@@ -333,7 +324,7 @@ impl Protocol {
 
                 let packet = Packet::read_extended(stream, packet_type, &mut buffer, (4, 5))?;
 
-                Ok(Protocol::Game(stream.clone(), PktGame::deserialize(packet)))
+                Ok(Protocol::Game(stream.clone(), PktGame::decode(packet)))
             }
             PktType::LEAVE => Ok(Protocol::Leave(stream.clone(), PktLeave::default())),
             PktType::CONNECTION => {
@@ -343,7 +334,7 @@ impl Protocol {
 
                 Ok(Protocol::Connection(
                     stream.clone(),
-                    PktConnection::deserialize(packet),
+                    PktConnection::decode(packet),
                 ))
             }
             PktType::VERSION => {
@@ -353,7 +344,7 @@ impl Protocol {
 
                 Ok(Protocol::Version(
                     stream.clone(),
-                    PktVersion::deserialize(packet),
+                    PktVersion::decode(packet),
                 ))
             }
             PktType::DEFAULT => Err(Error::new(ErrorKind::Unsupported, "Invalid packet type")),

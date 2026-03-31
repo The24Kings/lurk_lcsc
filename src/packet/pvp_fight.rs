@@ -44,7 +44,7 @@ impl PktPVPFight {
 /// ```
 macro_rules! send_pvp {
     ($stream:expr, $pkt_pvp:expr) => {
-        if let Err(e) = $crate::Protocol::PVPFight($stream, $pkt_pvp).send() {
+        if let Err(e) = $crate::send_to($stream.as_ref(), &$pkt_pvp) {
             eprintln!("Failed to send pvp fight packet: {}", e);
         }
     };
@@ -62,7 +62,7 @@ impl std::fmt::Display for PktPVPFight {
 }
 
 impl Parser<'_> for PktPVPFight {
-    fn serialize<W: Write>(self, writer: &mut W) -> Result<(), std::io::Error> {
+    fn write_to<W: Write>(&self, writer: &mut W) -> Result<(), std::io::Error> {
         // Package into a byte array
         let mut packet: Vec<u8> = vec![self.packet_type.into()];
 
@@ -78,7 +78,7 @@ impl Parser<'_> for PktPVPFight {
         Ok(())
     }
 
-    fn deserialize(packet: Packet) -> Self {
+    fn decode(packet: Packet) -> Self {
         let message_type = packet.packet_type;
         let target_name = String::from_utf8_lossy(&packet.body[0..32])
             .split('\0')
@@ -112,7 +112,7 @@ mod tests {
         let packet = Packet::new(&stream, type_byte, &original_bytes[1..]);
 
         // Deserialize the packet into a PktPVPFight
-        let message = <PktPVPFight as Parser>::deserialize(packet);
+        let message = PktPVPFight::decode(packet);
 
         // Assert the fields were parsed correctly
         assert_eq!(message.packet_type, PktType::PVPFIGHT);
@@ -120,9 +120,7 @@ mod tests {
 
         // Serialize the message back into bytes
         let mut buffer: Vec<u8> = Vec::new();
-        message
-            .serialize(&mut buffer)
-            .expect("Serialization failed");
+        message.write_to(&mut buffer).expect("Encoding failed");
 
         // Assert that the serialized bytes match the original
         assert_eq!(buffer, original_bytes);
@@ -143,7 +141,7 @@ mod tests {
         let stream = test_common::setup();
         let body: Vec<u8> = vec![0x00; 32];
         let packet = Packet::new(&stream, PktType::PVPFIGHT, &body);
-        let pvp = <PktPVPFight as Parser>::deserialize(packet);
+        let pvp = PktPVPFight::decode(packet);
 
         assert_eq!(pvp.target_name.as_ref(), "");
     }
@@ -155,7 +153,7 @@ mod tests {
         let long_name = "P".repeat(32);
         let body: Vec<u8> = long_name.as_bytes().to_vec();
         let packet = Packet::new(&stream, PktType::PVPFIGHT, &body);
-        let pvp = <PktPVPFight as Parser>::deserialize(packet);
+        let pvp = PktPVPFight::decode(packet);
 
         assert_eq!(pvp.target_name.as_ref(), &long_name);
     }
@@ -167,14 +165,12 @@ mod tests {
         let original = PktPVPFight::fight("Rival");
 
         let mut buffer: Vec<u8> = Vec::new();
-        original
-            .serialize(&mut buffer)
-            .expect("Serialization failed");
+        original.write_to(&mut buffer).expect("Encoding failed");
 
         assert_eq!(buffer.len(), 33); // type(1) + name(32)
 
         let packet = Packet::new(&stream, PktType::PVPFIGHT, &buffer[1..]);
-        let deserialized = <PktPVPFight as Parser>::deserialize(packet);
+        let deserialized = PktPVPFight::decode(packet);
         assert_eq!(deserialized.target_name.as_ref(), "Rival");
     }
 
@@ -185,7 +181,7 @@ mod tests {
         let mut body = vec![0xFF, 0xFE, 0xFD];
         body.resize(32, 0x00);
         let packet = Packet::new(&stream, PktType::PVPFIGHT, &body);
-        let pvp = <PktPVPFight as Parser>::deserialize(packet);
+        let pvp = PktPVPFight::decode(packet);
 
         assert!(pvp.target_name.contains('\u{FFFD}'));
     }
@@ -197,7 +193,7 @@ mod tests {
         let stream = test_common::setup();
         let body: &[u8] = &[0x41, 0x42]; // Only 2 bytes, need 32
         let packet = Packet::new(&stream, PktType::PVPFIGHT, body);
-        let _ = <PktPVPFight as Parser>::deserialize(packet);
+        let _ = PktPVPFight::decode(packet);
     }
 
     /// Empty body should panic.
@@ -207,7 +203,7 @@ mod tests {
         let stream = test_common::setup();
         let body: &[u8] = &[];
         let packet = Packet::new(&stream, PktType::PVPFIGHT, body);
-        let _ = <PktPVPFight as Parser>::deserialize(packet);
+        let _ = PktPVPFight::decode(packet);
     }
 
     /// All 0xFF body.
@@ -216,7 +212,7 @@ mod tests {
         let stream = test_common::setup();
         let body: Vec<u8> = vec![0xFF; 32];
         let packet = Packet::new(&stream, PktType::PVPFIGHT, &body);
-        let pvp = <PktPVPFight as Parser>::deserialize(packet);
+        let pvp = PktPVPFight::decode(packet);
 
         assert!(!pvp.target_name.is_empty());
     }

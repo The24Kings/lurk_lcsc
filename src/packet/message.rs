@@ -77,7 +77,7 @@ impl PktMessage {
 /// ```
 macro_rules! send_message {
     ($stream:expr, $msg:expr) => {
-        if let Err(e) = $crate::Protocol::Message($stream, $msg).send() {
+        if let Err(e) = $crate::send_to($stream.as_ref(), &$msg) {
             eprintln!("Failed to send message packet: {}", e);
         }
     };
@@ -95,7 +95,7 @@ impl std::fmt::Display for PktMessage {
 }
 
 impl Parser<'_> for PktMessage {
-    fn serialize<W: Write>(self, writer: &mut W) -> Result<(), std::io::Error> {
+    fn write_to<W: Write>(&self, writer: &mut W) -> Result<(), std::io::Error> {
         // Package into a byte array
         let mut packet: Vec<u8> = vec![self.packet_type.into()];
 
@@ -128,7 +128,7 @@ impl Parser<'_> for PktMessage {
         Ok(())
     }
 
-    fn deserialize(packet: Packet) -> Self {
+    fn decode(packet: Packet) -> Self {
         let message_len = u16::from_le_bytes([packet.body[0], packet.body[1]]);
 
         // Process the names for recipient and sender
@@ -188,7 +188,7 @@ mod tests {
         let packet = Packet::new(&stream, type_byte, &original_bytes[1..]);
 
         // Deserialize the packet into a PktMessage
-        let message = <PktMessage as Parser>::deserialize(packet);
+        let message = PktMessage::decode(packet);
 
         // Assert the fields were parsed correctly
         assert_eq!(message.packet_type, PktType::MESSAGE);
@@ -200,9 +200,7 @@ mod tests {
 
         // Serialize the message back into bytes
         let mut buffer: Vec<u8> = Vec::new();
-        message
-            .serialize(&mut buffer)
-            .expect("Serialization failed");
+        message.write_to(&mut buffer).expect("Encoding failed");
 
         // Assert that the serialized bytes match the original
         assert_eq!(buffer, original_bytes);
@@ -224,7 +222,7 @@ mod tests {
         body.extend(b"Sup");
 
         let packet = Packet::new(&stream, PktType::MESSAGE, &body);
-        let msg = <PktMessage as Parser>::deserialize(packet);
+        let msg = PktMessage::decode(packet);
 
         assert_eq!(msg.message_len, 3);
         assert_eq!(msg.recipient.as_ref(), "Player1");
@@ -249,7 +247,7 @@ mod tests {
         body.extend(msg_text.as_bytes());
 
         let packet = Packet::new(&stream, PktType::MESSAGE, &body);
-        let msg = <PktMessage as Parser>::deserialize(packet);
+        let msg = PktMessage::decode(packet);
 
         assert_eq!(msg.recipient.as_ref(), "Player1");
         assert_eq!(msg.sender.as_ref(), "Server");
@@ -287,7 +285,7 @@ mod tests {
         let msg = PktMessage::narrator("Player1", "A tale of old.");
 
         let mut buffer: Vec<u8> = Vec::new();
-        msg.serialize(&mut buffer).expect("Serialization failed");
+        msg.write_to(&mut buffer).expect("Encoding failed");
 
         // Check the narration marker bytes at end of sender field (bytes 35..67, sender is at 35+30=65,66)
         // Sender occupies bytes 35..67 in the full packet (including type byte at 0)
@@ -298,7 +296,7 @@ mod tests {
 
         // Deserialize and verify
         let packet = Packet::new(&stream, PktType::MESSAGE, &buffer[1..]);
-        let deserialized = <PktMessage as Parser>::deserialize(packet);
+        let deserialized = PktMessage::decode(packet);
         assert!(deserialized.narration);
         assert_eq!(deserialized.sender.as_ref(), "Narrator");
     }
@@ -310,10 +308,10 @@ mod tests {
         let msg = PktMessage::server("Player1", "Hello.");
 
         let mut buffer: Vec<u8> = Vec::new();
-        msg.serialize(&mut buffer).expect("Serialization failed");
+        msg.write_to(&mut buffer).expect("Encoding failed");
 
         let packet = Packet::new(&stream, PktType::MESSAGE, &buffer[1..]);
-        let deserialized = <PktMessage as Parser>::deserialize(packet);
+        let deserialized = PktMessage::decode(packet);
         assert!(!deserialized.narration);
         assert_eq!(deserialized.sender.as_ref(), "Server");
         assert_eq!(deserialized.message.as_ref(), "Hello.");
@@ -326,10 +324,10 @@ mod tests {
         let msg = PktMessage::server("Player1", "");
 
         let mut buffer: Vec<u8> = Vec::new();
-        msg.serialize(&mut buffer).expect("Serialization failed");
+        msg.write_to(&mut buffer).expect("Encoding failed");
 
         let packet = Packet::new(&stream, PktType::MESSAGE, &buffer[1..]);
-        let deserialized = <PktMessage as Parser>::deserialize(packet);
+        let deserialized = PktMessage::decode(packet);
         assert_eq!(deserialized.message_len, 0);
         assert_eq!(deserialized.message.as_ref(), "");
     }
@@ -342,10 +340,10 @@ mod tests {
         let msg = PktMessage::server("Player1", &long_text);
 
         let mut buffer: Vec<u8> = Vec::new();
-        msg.serialize(&mut buffer).expect("Serialization failed");
+        msg.write_to(&mut buffer).expect("Encoding failed");
 
         let packet = Packet::new(&stream, PktType::MESSAGE, &buffer[1..]);
-        let deserialized = <PktMessage as Parser>::deserialize(packet);
+        let deserialized = PktMessage::decode(packet);
         assert_eq!(deserialized.message_len, 5000);
         assert_eq!(deserialized.message.len(), 5000);
     }
@@ -365,10 +363,10 @@ mod tests {
         };
 
         let mut buffer: Vec<u8> = Vec::new();
-        msg.serialize(&mut buffer).expect("Serialization failed");
+        msg.write_to(&mut buffer).expect("Encoding failed");
 
         let packet = Packet::new(&stream, PktType::MESSAGE, &buffer[1..]);
-        let deserialized = <PktMessage as Parser>::deserialize(packet);
+        let deserialized = PktMessage::decode(packet);
         assert_eq!(deserialized.recipient.as_ref(), &long_name);
     }
 
@@ -379,7 +377,7 @@ mod tests {
         let stream = test_common::setup();
         let body: &[u8] = &[0x00, 0x00, 0x41]; // Only 3 bytes, need at least 66
         let packet = Packet::new(&stream, PktType::MESSAGE, body);
-        let _ = <PktMessage as Parser>::deserialize(packet);
+        let _ = PktMessage::decode(packet);
     }
 
     /// Empty body should panic.
@@ -389,7 +387,7 @@ mod tests {
         let stream = test_common::setup();
         let body: &[u8] = &[];
         let packet = Packet::new(&stream, PktType::MESSAGE, body);
-        let _ = <PktMessage as Parser>::deserialize(packet);
+        let _ = PktMessage::decode(packet);
     }
 
     /// All-zero 66-byte body should parse without panic.
@@ -398,7 +396,7 @@ mod tests {
         let stream = test_common::setup();
         let body: Vec<u8> = vec![0x00; 66];
         let packet = Packet::new(&stream, PktType::MESSAGE, &body);
-        let msg = <PktMessage as Parser>::deserialize(packet);
+        let msg = PktMessage::decode(packet);
 
         assert_eq!(msg.message_len, 0);
         assert_eq!(msg.recipient.as_ref(), "");
@@ -412,7 +410,7 @@ mod tests {
         let stream = test_common::setup();
         let body: Vec<u8> = vec![0xFF; 66];
         let packet = Packet::new(&stream, PktType::MESSAGE, &body);
-        let msg = <PktMessage as Parser>::deserialize(packet);
+        let msg = PktMessage::decode(packet);
 
         assert_eq!(msg.message_len, u16::MAX);
         // Recipient and sender will contain replacement chars for invalid UTF-8
@@ -434,7 +432,7 @@ mod tests {
         body.extend(&sender);
 
         let packet = Packet::new(&stream, PktType::MESSAGE, &body);
-        let msg = <PktMessage as Parser>::deserialize(packet);
+        let msg = PktMessage::decode(packet);
 
         assert!(msg.recipient.contains('\u{FFFD}'));
         assert!(msg.sender.contains('\u{FFFD}'));
