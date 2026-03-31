@@ -46,9 +46,7 @@ pub struct PktVersion {
 /// ```
 macro_rules! send_version {
     ($stream:expr, $pkt_version:expr) => {
-        $crate::Protocol::Version($stream, $pkt_version)
-            .send()
-            .expect("Failed to send version packet");
+        $crate::send_to($stream.as_ref(), &$pkt_version).expect("Failed to send version packet");
     };
 }
 
@@ -64,7 +62,7 @@ impl std::fmt::Display for PktVersion {
 }
 
 impl Parser<'_> for PktVersion {
-    fn serialize<W: Write>(self, writer: &mut W) -> Result<(), std::io::Error> {
+    fn write_to<W: Write>(&self, writer: &mut W) -> Result<(), std::io::Error> {
         // Package into a byte array
         let mut packet: Vec<u8> = vec![self.packet_type.into()];
 
@@ -84,7 +82,7 @@ impl Parser<'_> for PktVersion {
         Ok(())
     }
 
-    fn deserialize(packet: Packet) -> Self {
+    fn decode(packet: Packet) -> Self {
         Self {
             packet_type: packet.packet_type,
             major_rev: packet.body[0],
@@ -111,7 +109,7 @@ mod tests {
         let packet = Packet::new(&stream, type_byte, &original_bytes[1..]);
 
         // Deserialize the packet into a PktVersion
-        let message = <PktVersion as Parser>::deserialize(packet);
+        let message = PktVersion::decode(packet);
 
         // Assert the fields were parsed correctly
         assert_eq!(message.packet_type, PktType::VERSION);
@@ -122,9 +120,7 @@ mod tests {
 
         // Serialize the message back into bytes
         let mut buffer: Vec<u8> = Vec::new();
-        message
-            .serialize(&mut buffer)
-            .expect("Serialization failed");
+        message.write_to(&mut buffer).expect("Encoding failed");
 
         // Assert that the serialized bytes match the original
         assert_eq!(buffer, original_bytes);
@@ -138,7 +134,7 @@ mod tests {
         // From trace: 0e 02 03 00 00
         let body: &[u8] = &[0x02, 0x03, 0x00, 0x00];
         let packet = Packet::new(&stream, PktType::VERSION, body);
-        let ver = <PktVersion as Parser>::deserialize(packet);
+        let ver = PktVersion::decode(packet);
 
         assert_eq!(ver.major_rev, 2);
         assert_eq!(ver.minor_rev, 3);
@@ -152,7 +148,7 @@ mod tests {
         let stream = test_common::setup();
         let body: &[u8] = &[0xFF, 0xFF, 0x00, 0x00];
         let packet = Packet::new(&stream, PktType::VERSION, body);
-        let ver = <PktVersion as Parser>::deserialize(packet);
+        let ver = PktVersion::decode(packet);
 
         assert_eq!(ver.major_rev, 255);
         assert_eq!(ver.minor_rev, 255);
@@ -164,7 +160,7 @@ mod tests {
         let stream = test_common::setup();
         let body: &[u8] = &[0x00, 0x00, 0x00, 0x00];
         let packet = Packet::new(&stream, PktType::VERSION, body);
-        let ver = <PktVersion as Parser>::deserialize(packet);
+        let ver = PktVersion::decode(packet);
 
         assert_eq!(ver.major_rev, 0);
         assert_eq!(ver.minor_rev, 0);
@@ -182,7 +178,7 @@ mod tests {
         };
 
         let mut buffer: Vec<u8> = Vec::new();
-        ver.serialize(&mut buffer).expect("Serialization failed");
+        ver.write_to(&mut buffer).expect("Encoding failed");
 
         // Type(1) + major(1) + minor(1) + ext_len(2) + extensions(5) = 10
         assert_eq!(buffer.len(), 10);
@@ -206,7 +202,7 @@ mod tests {
         };
 
         let mut buffer: Vec<u8> = Vec::new();
-        ver.serialize(&mut buffer).expect("Serialization failed");
+        ver.write_to(&mut buffer).expect("Encoding failed");
 
         assert_eq!(buffer.len(), 5);
         assert_eq!(buffer, &[0x0e, 0x01, 0x00, 0x00, 0x00]);
@@ -225,12 +221,10 @@ mod tests {
         };
 
         let mut buffer: Vec<u8> = Vec::new();
-        original
-            .serialize(&mut buffer)
-            .expect("Serialization failed");
+        original.write_to(&mut buffer).expect("Encoding failed");
 
         let packet = Packet::new(&stream, PktType::VERSION, &buffer[1..]);
-        let deserialized = <PktVersion as Parser>::deserialize(packet);
+        let deserialized = PktVersion::decode(packet);
 
         assert_eq!(deserialized.major_rev, 10);
         assert_eq!(deserialized.minor_rev, 42);
@@ -242,7 +236,7 @@ mod tests {
         let stream = test_common::setup();
         let body: &[u8] = &[0x02, 0x03, 0x00, 0x00, 0xFF, 0xFF, 0xFF];
         let packet = Packet::new(&stream, PktType::VERSION, body);
-        let ver = <PktVersion as Parser>::deserialize(packet);
+        let ver = PktVersion::decode(packet);
 
         assert_eq!(ver.major_rev, 2);
         assert_eq!(ver.minor_rev, 3);
@@ -255,7 +249,7 @@ mod tests {
         let stream = test_common::setup();
         let body: &[u8] = &[0x02]; // Only 1 byte, need at least 2
         let packet = Packet::new(&stream, PktType::VERSION, body);
-        let _ = <PktVersion as Parser>::deserialize(packet);
+        let _ = PktVersion::decode(packet);
     }
 
     /// Empty body should panic during deserialization.
@@ -265,7 +259,7 @@ mod tests {
         let stream = test_common::setup();
         let body: &[u8] = &[];
         let packet = Packet::new(&stream, PktType::VERSION, body);
-        let _ = <PktVersion as Parser>::deserialize(packet);
+        let _ = PktVersion::decode(packet);
     }
 
     /// All 0xFF bytes in body.
@@ -274,7 +268,7 @@ mod tests {
         let stream = test_common::setup();
         let body: &[u8] = &[0xFF, 0xFF, 0xFF, 0xFF];
         let packet = Packet::new(&stream, PktType::VERSION, body);
-        let ver = <PktVersion as Parser>::deserialize(packet);
+        let ver = PktVersion::decode(packet);
 
         assert_eq!(ver.major_rev, 255);
         assert_eq!(ver.minor_rev, 255);
@@ -286,7 +280,7 @@ mod tests {
         let stream = test_common::setup();
         let body: &[u8] = &[0x00, 0x00, 0x00, 0x00];
         let packet = Packet::new(&stream, PktType::VERSION, body);
-        let ver = <PktVersion as Parser>::deserialize(packet);
+        let ver = PktVersion::decode(packet);
 
         assert_eq!(ver.major_rev, 0);
         assert_eq!(ver.minor_rev, 0);

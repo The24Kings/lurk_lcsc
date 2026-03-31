@@ -90,7 +90,7 @@ impl PktCharacter {
 /// ```
 macro_rules! send_character {
     ($stream:expr, $player:expr) => {
-        if let Err(e) = $crate::Protocol::Character($stream, $player).send() {
+        if let Err(e) = $crate::send_to($stream.as_ref(), &$player) {
             eprintln!("Failed to send character packet: {}", e);
         }
     };
@@ -108,7 +108,7 @@ impl std::fmt::Display for PktCharacter {
 }
 
 impl Parser<'_> for PktCharacter {
-    fn serialize<W: Write>(self, writer: &mut W) -> Result<(), std::io::Error> {
+    fn write_to<W: Write>(&self, writer: &mut W) -> Result<(), std::io::Error> {
         // Package into a byte array
         let mut packet: Vec<u8> = vec![self.packet_type.into()];
 
@@ -139,7 +139,7 @@ impl Parser<'_> for PktCharacter {
         Ok(())
     }
 
-    fn deserialize(packet: Packet) -> Self {
+    fn decode(packet: Packet) -> Self {
         let name = String::from_utf8_lossy(&packet.body[0..32])
             .split('\0')
             .take(1)
@@ -194,7 +194,7 @@ mod tests {
         let packet = Packet::new(&stream, type_byte, &original_bytes[1..]);
 
         // Deserialize the packet into a PktCharacter
-        let message = <PktCharacter as Parser>::deserialize(packet);
+        let message = PktCharacter::decode(packet);
 
         // Assert the fields were parsed correctly
         assert_eq!(message.packet_type, PktType::CHARACTER);
@@ -210,9 +210,7 @@ mod tests {
 
         // Serialize the message back into bytes
         let mut buffer: Vec<u8> = Vec::new();
-        message
-            .serialize(&mut buffer)
-            .expect("Serialization failed");
+        message.write_to(&mut buffer).expect("Encoding failed");
 
         // Assert that the serialized bytes match the original
         assert_eq!(buffer, original_bytes);
@@ -240,7 +238,7 @@ mod tests {
         body.extend(0u16.to_le_bytes()); // description_len
 
         let packet = Packet::new(&stream, PktType::CHARACTER, &body);
-        let chr = <PktCharacter as Parser>::deserialize(packet);
+        let chr = PktCharacter::decode(packet);
 
         assert_eq!(chr.name.as_ref(), "Test");
         assert!(chr.flags.contains(CharacterFlags::ALIVE));
@@ -276,7 +274,7 @@ mod tests {
         body.extend(0u16.to_le_bytes());
 
         let packet = Packet::new(&stream, PktType::CHARACTER, &body);
-        let chr = <PktCharacter as Parser>::deserialize(packet);
+        let chr = PktCharacter::decode(packet);
 
         assert!(chr.flags.contains(CharacterFlags::ALIVE));
         assert!(chr.flags.contains(CharacterFlags::BATTLE));
@@ -305,7 +303,7 @@ mod tests {
         body.extend(desc.as_bytes());
 
         let packet = Packet::new(&stream, PktType::CHARACTER, &body);
-        let chr = <PktCharacter as Parser>::deserialize(packet);
+        let chr = PktCharacter::decode(packet);
 
         assert_eq!(chr.name.as_ref(), "Deku Baba");
         assert!(chr.flags.contains(CharacterFlags::ALIVE));
@@ -340,7 +338,7 @@ mod tests {
         body.extend(desc.as_bytes());
 
         let packet = Packet::new(&stream, PktType::CHARACTER, &body);
-        let chr = <PktCharacter as Parser>::deserialize(packet);
+        let chr = PktCharacter::decode(packet);
 
         assert!(!chr.flags.contains(CharacterFlags::ALIVE));
         assert!(chr.flags.contains(CharacterFlags::MONSTER));
@@ -365,7 +363,7 @@ mod tests {
         body.extend(0u16.to_le_bytes()); // description_len
 
         let packet = Packet::new(&stream, PktType::CHARACTER, &body);
-        let chr = <PktCharacter as Parser>::deserialize(packet);
+        let chr = PktCharacter::decode(packet);
 
         assert_eq!(chr.attack, u16::MAX);
         assert_eq!(chr.defense, u16::MAX);
@@ -393,7 +391,7 @@ mod tests {
         body.extend(0u16.to_le_bytes());
 
         let packet = Packet::new(&stream, PktType::CHARACTER, &body);
-        let chr = <PktCharacter as Parser>::deserialize(packet);
+        let chr = PktCharacter::decode(packet);
 
         assert_eq!(chr.health, i16::MIN);
     }
@@ -405,7 +403,7 @@ mod tests {
         let body: Vec<u8> = vec![0x00; 47]; // 32 name + 1 flags + 14 stats = 47
 
         let packet = Packet::new(&stream, PktType::CHARACTER, &body);
-        let chr = <PktCharacter as Parser>::deserialize(packet);
+        let chr = PktCharacter::decode(packet);
 
         assert_eq!(chr.name.as_ref(), "");
         assert!(chr.flags.is_empty());
@@ -435,7 +433,7 @@ mod tests {
         body.extend(0u16.to_le_bytes());
 
         let packet = Packet::new(&stream, PktType::CHARACTER, &body);
-        let chr = <PktCharacter as Parser>::deserialize(packet);
+        let chr = PktCharacter::decode(packet);
 
         assert_eq!(chr.name.as_ref(), &long_name);
     }
@@ -463,12 +461,10 @@ mod tests {
         };
 
         let mut buffer: Vec<u8> = Vec::new();
-        original
-            .serialize(&mut buffer)
-            .expect("Serialization failed");
+        original.write_to(&mut buffer).expect("Encoding failed");
 
         let packet = Packet::new(&stream, PktType::CHARACTER, &buffer[1..]);
-        let deserialized = <PktCharacter as Parser>::deserialize(packet);
+        let deserialized = PktCharacter::decode(packet);
 
         assert_eq!(deserialized.name.as_ref(), "TestHero");
         assert_eq!(
@@ -499,7 +495,7 @@ mod tests {
         body.extend(vec![0u8; 14]); // stats
 
         let packet = Packet::new(&stream, PktType::CHARACTER, &body);
-        let chr = <PktCharacter as Parser>::deserialize(packet);
+        let chr = PktCharacter::decode(packet);
 
         // Should contain replacement characters
         assert!(chr.name.contains('\u{FFFD}'));
@@ -512,7 +508,7 @@ mod tests {
         let stream = test_common::setup();
         let body: &[u8] = &[0x41; 20]; // Only 20 bytes, need at least 47
         let packet = Packet::new(&stream, PktType::CHARACTER, body);
-        let _ = <PktCharacter as Parser>::deserialize(packet);
+        let _ = PktCharacter::decode(packet);
     }
 
     /// Empty body should panic.
@@ -522,7 +518,7 @@ mod tests {
         let stream = test_common::setup();
         let body: &[u8] = &[];
         let packet = Packet::new(&stream, PktType::CHARACTER, body);
-        let _ = <PktCharacter as Parser>::deserialize(packet);
+        let _ = PktCharacter::decode(packet);
     }
 
     /// Verify CharacterFlags helper methods work.
@@ -585,7 +581,7 @@ mod tests {
         let body: Vec<u8> = vec![0xFF; 47];
 
         let packet = Packet::new(&stream, PktType::CHARACTER, &body);
-        let chr = <PktCharacter as Parser>::deserialize(packet);
+        let chr = PktCharacter::decode(packet);
 
         // Flags are truncated to known bits
         assert!(chr.flags.contains(CharacterFlags::ALIVE));
@@ -655,7 +651,7 @@ mod tests {
             body.extend(0u16.to_le_bytes()); // desc_len
 
             let packet = Packet::new(&stream, PktType::CHARACTER, &body);
-            let chr = <PktCharacter as Parser>::deserialize(packet);
+            let chr = PktCharacter::decode(packet);
             assert_eq!(chr.health, health, "Failed for health value: {}", health);
         }
     }
@@ -680,7 +676,7 @@ mod tests {
             body.extend(0u16.to_le_bytes());
 
             let packet = Packet::new(&stream, PktType::CHARACTER, &body);
-            let chr = <PktCharacter as Parser>::deserialize(packet);
+            let chr = PktCharacter::decode(packet);
             assert_eq!(chr.gold, gold, "Failed for gold value: {}", gold);
         }
     }

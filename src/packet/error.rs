@@ -51,7 +51,7 @@ impl PktError {
 /// ```
 macro_rules! send_error {
     ($stream:expr, $pkt_error:expr) => {
-        if let Err(e) = $crate::Protocol::Error($stream, $pkt_error).send() {
+        if let Err(e) = $crate::send_to($stream.as_ref(), &$pkt_error) {
             eprintln!("Failed to send error packet: {}", e);
         }
     };
@@ -68,7 +68,7 @@ impl std::fmt::Display for PktError {
 }
 
 impl Parser<'_> for PktError {
-    fn serialize<W: Write>(self, writer: &mut W) -> Result<(), std::io::Error> {
+    fn write_to<W: Write>(&self, writer: &mut W) -> Result<(), std::io::Error> {
         // Package into a byte array
         let mut packet: Vec<u8> = vec![self.packet_type.into()];
 
@@ -84,7 +84,7 @@ impl Parser<'_> for PktError {
         Ok(())
     }
 
-    fn deserialize(packet: Packet) -> Self {
+    fn decode(packet: Packet) -> Self {
         let message_type = packet.packet_type;
         let error = LurkError::from(packet.body[0]);
         let message_len = u16::from_le_bytes([packet.body[1], packet.body[2]]);
@@ -121,7 +121,7 @@ mod tests {
         let packet = Packet::new(&stream, type_byte, &original_bytes[1..]);
 
         // Deserialize the packet into a PktError
-        let message = <PktError as Parser>::deserialize(packet);
+        let message = PktError::decode(packet);
 
         // Assert the fields were parsed correctly
         assert_eq!(message.packet_type, PktType::ERROR);
@@ -131,9 +131,7 @@ mod tests {
 
         // Serialize the message back into bytes
         let mut buffer: Vec<u8> = Vec::new();
-        message
-            .serialize(&mut buffer)
-            .expect("Serialization failed");
+        message.write_to(&mut buffer).expect("Encoding failed");
 
         // Assert that the serialized bytes match the original
         assert_eq!(buffer, original_bytes);
@@ -169,12 +167,12 @@ mod tests {
         for (i, lurk_err) in errors.iter().enumerate() {
             let err = PktError::new(*lurk_err, "test");
             let mut buffer: Vec<u8> = Vec::new();
-            err.serialize(&mut buffer).expect("Serialization failed");
+            err.write_to(&mut buffer).expect("Encoding failed");
 
             assert_eq!(buffer[1], i as u8); // Error code is sequential from 0
 
             let packet = Packet::new(&stream, PktType::ERROR, &buffer[1..]);
-            let deserialized = <PktError as Parser>::deserialize(packet);
+            let deserialized = PktError::decode(packet);
             assert_eq!(deserialized.error, *lurk_err);
         }
     }
@@ -186,10 +184,10 @@ mod tests {
         let err = PktError::new(LurkError::OTHER, "");
 
         let mut buffer: Vec<u8> = Vec::new();
-        err.serialize(&mut buffer).expect("Serialization failed");
+        err.write_to(&mut buffer).expect("Encoding failed");
 
         let packet = Packet::new(&stream, PktType::ERROR, &buffer[1..]);
-        let deserialized = <PktError as Parser>::deserialize(packet);
+        let deserialized = PktError::decode(packet);
         assert_eq!(deserialized.message_len, 0);
         assert_eq!(deserialized.message.as_ref(), "");
     }
@@ -202,10 +200,10 @@ mod tests {
         let err = PktError::new(LurkError::OTHER, &long_msg);
 
         let mut buffer: Vec<u8> = Vec::new();
-        err.serialize(&mut buffer).expect("Serialization failed");
+        err.write_to(&mut buffer).expect("Encoding failed");
 
         let packet = Packet::new(&stream, PktType::ERROR, &buffer[1..]);
-        let deserialized = <PktError as Parser>::deserialize(packet);
+        let deserialized = PktError::decode(packet);
         assert_eq!(deserialized.message.len(), 5000);
     }
 
@@ -219,7 +217,7 @@ mod tests {
         body.extend(b"test");
 
         let packet = Packet::new(&stream, PktType::ERROR, &body);
-        let err = <PktError as Parser>::deserialize(packet);
+        let err = PktError::decode(packet);
         assert_eq!(err.error, LurkError::OTHER);
     }
 
@@ -230,7 +228,7 @@ mod tests {
         let stream = test_common::setup();
         let body: &[u8] = &[0x00]; // Need at least 3
         let packet = Packet::new(&stream, PktType::ERROR, body);
-        let _ = <PktError as Parser>::deserialize(packet);
+        let _ = PktError::decode(packet);
     }
 
     /// Empty body should panic.
@@ -240,7 +238,7 @@ mod tests {
         let stream = test_common::setup();
         let body: &[u8] = &[];
         let packet = Packet::new(&stream, PktType::ERROR, body);
-        let _ = <PktError as Parser>::deserialize(packet);
+        let _ = PktError::decode(packet);
     }
 
     /// All zeros body should parse.
@@ -249,7 +247,7 @@ mod tests {
         let stream = test_common::setup();
         let body: &[u8] = &[0x00, 0x00, 0x00];
         let packet = Packet::new(&stream, PktType::ERROR, body);
-        let err = <PktError as Parser>::deserialize(packet);
+        let err = PktError::decode(packet);
 
         assert_eq!(err.error, LurkError::OTHER);
         assert_eq!(err.message_len, 0);
@@ -274,7 +272,7 @@ mod tests {
         body.extend(&[0xFF, 0xFE, 0xFD, 0xFC]);
 
         let packet = Packet::new(&stream, PktType::ERROR, &body);
-        let err = <PktError as Parser>::deserialize(packet);
+        let err = PktError::decode(packet);
         assert!(err.message.contains('\u{FFFD}'));
     }
 }

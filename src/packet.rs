@@ -48,16 +48,16 @@ pub mod version;
 /// ```no_run
 /// use lurk_lcsc::{Packet, Parser, PktType};
 /// use std::io::{Error, Write};
-/// use serde::Serialize;
+/// use serde::{Deserialize, Serialize};
 ///
-///
+/// #[derive(Serialize, Deserialize)]
 /// pub struct PktLoot {
 ///    pub message_type: PktType,
 ///    pub target_name: Box<str>,
 ///}
 ///
 /// impl Parser<'_> for PktLoot {
-///     fn serialize<W: Write>(self, writer: &mut W) -> Result<(), Error> {
+///     fn write_to<W: Write>(&self, writer: &mut W) -> Result<(), Error> {
 ///         // Package into a byte array
 ///         let mut packet: Vec<u8> = vec![self.message_type.into()];
 ///
@@ -73,7 +73,7 @@ pub mod version;
 ///         Ok(())
 ///     }
 ///
-///     fn deserialize(packet: Packet) -> Self {
+///     fn decode(packet: Packet) -> Self {
 ///         let message_type = packet.packet_type;
 ///         let target_name = String::from_utf8_lossy(&packet.body[0..32])
 ///             .trim_end_matches('\0')
@@ -103,9 +103,9 @@ pub trait Parser<'a>: Sized + 'a {
     /// };
     ///
     /// let mut buffer: Vec<u8> = Vec::new();
-    /// packet.serialize(&mut buffer).unwrap();
+    /// packet.write_to(&mut buffer).unwrap();
     /// ```
-    fn serialize<W: Write>(self, writer: &mut W) -> Result<(), Error>;
+    fn write_to<W: Write>(&self, writer: &mut W) -> Result<(), Error>;
 
     /// Deserializes a Packet into the implementing type.
     ///
@@ -131,14 +131,14 @@ pub trait Parser<'a>: Sized + 'a {
     ///
     ///        Ok(Protocol::Message(
     ///            stream.clone(),
-    ///            PktMessage::deserialize(pkt),
+    ///            PktMessage::decode(pkt),
     ///        ))
     ///    },
     ///     _ => todo!("Handle other packet types"),
     ///     PktType::DEFAULT => Err(Error::new(ErrorKind::Unsupported, "Invalid packet type")),
     /// };
     /// ```
-    fn deserialize(packet: Packet) -> Self;
+    fn decode(packet: Packet) -> Self;
 }
 
 /// Represents a network packet containing a reference to the TCP stream, packet type, and body.

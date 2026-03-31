@@ -44,7 +44,7 @@ impl Default for PktFight {
 /// ```
 macro_rules! send_fight {
     ($stream:expr, $pkt_fight:expr) => {
-        if let Err(e) = $crate::Protocol::Fight($stream, $pkt_fight).send() {
+        if let Err(e) = $crate::send_to($stream.as_ref(), &$pkt_fight) {
             eprintln!("Failed to send fight packet: {}", e);
         }
     };
@@ -61,7 +61,7 @@ impl std::fmt::Display for PktFight {
 }
 
 impl Parser<'_> for PktFight {
-    fn serialize<W: Write>(self, writer: &mut W) -> Result<(), std::io::Error> {
+    fn write_to<W: Write>(&self, writer: &mut W) -> Result<(), std::io::Error> {
         // Package into a byte array
         let packet: Vec<u8> = vec![self.packet_type.into()];
 
@@ -73,7 +73,7 @@ impl Parser<'_> for PktFight {
         Ok(())
     }
 
-    fn deserialize(packet: Packet) -> Self {
+    fn decode(packet: Packet) -> Self {
         Self {
             packet_type: packet.packet_type,
         }
@@ -96,16 +96,14 @@ mod tests {
         let packet = Packet::new(&stream, type_byte, &[]);
 
         // Deserialize the packet into a PktFight
-        let message = <PktFight as Parser>::deserialize(packet);
+        let message = PktFight::decode(packet);
 
         // Assert the fields were parsed correctly
         assert_eq!(message.packet_type, PktType::FIGHT);
 
         // Serialize the message back into bytes
         let mut buffer: Vec<u8> = Vec::new();
-        message
-            .serialize(&mut buffer)
-            .expect("Serialization failed");
+        message.write_to(&mut buffer).expect("Encoding failed");
 
         // Assert that the serialized bytes match the original
         assert_eq!(buffer, original_bytes);
@@ -124,7 +122,7 @@ mod tests {
     fn fight_serialize_length() {
         let fight = PktFight::default();
         let mut buffer: Vec<u8> = Vec::new();
-        fight.serialize(&mut buffer).expect("Serialization failed");
+        fight.write_to(&mut buffer).expect("Encoding failed");
         assert_eq!(buffer.len(), 1);
         assert_eq!(buffer[0], 0x03);
     }
@@ -136,12 +134,10 @@ mod tests {
         let original = PktFight::default();
 
         let mut buffer: Vec<u8> = Vec::new();
-        original
-            .serialize(&mut buffer)
-            .expect("Serialization failed");
+        original.write_to(&mut buffer).expect("Encoding failed");
 
         let packet = Packet::new(&stream, PktType::FIGHT, &[]);
-        let deserialized = <PktFight as Parser>::deserialize(packet);
+        let deserialized = PktFight::decode(packet);
         assert_eq!(deserialized.packet_type, PktType::FIGHT);
     }
 
@@ -151,7 +147,7 @@ mod tests {
         let stream = test_common::setup();
         let body: &[u8] = &[0xFF, 0xFF, 0xFF];
         let packet = Packet::new(&stream, PktType::FIGHT, body);
-        let fight = <PktFight as Parser>::deserialize(packet);
+        let fight = PktFight::decode(packet);
         assert_eq!(fight.packet_type, PktType::FIGHT);
     }
 

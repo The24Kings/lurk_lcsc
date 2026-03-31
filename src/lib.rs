@@ -78,7 +78,7 @@
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
 // Lurk types in rustdoc of other crates get linked to here.
-#![doc(html_root_url = "https://docs.rs/lurk_lcsc/2.3.13")]
+#![doc(html_root_url = "https://docs.rs/lurk_lcsc/2.3.14")]
 // Show which crate feature enables conditionally compiled APIs in documentation.
 #![cfg_attr(docsrs, feature(doc_cfg, rustdoc_internals))]
 #![cfg_attr(docsrs, allow(internal_features))]
@@ -128,6 +128,9 @@
 
 ////////////////////////////////////////////////////////////////////////////////
 
+use std::io::Write;
+use std::net::TcpStream;
+
 pub use flags::CharacterFlags;
 pub use lurk_error::LurkError;
 #[doc(hidden)]
@@ -166,7 +169,7 @@ pub mod packet;
 /// let packet = PktMessage::server("Player1", "Welcome to the game!");
 ///
 /// let mut buffer: Vec<u8> = Vec::new();
-/// packet.serialize(&mut buffer).unwrap();
+/// packet.write_to(&mut buffer).unwrap();
 ///
 /// println!("{}", PCap::build(buffer));
 /// ```
@@ -183,3 +186,22 @@ pub use pcap::PCap;
 #[doc(hidden)]
 #[allow(dead_code)] // Suppress unused warning as this module is used in multiple test modules.
 pub(crate) mod test_common;
+
+/// Serialize a packet and write it directly to a [`TcpStream`].
+pub fn send_to<'a>(
+    stream: &TcpStream,
+    packet: &(impl Parser<'a> + std::fmt::Display),
+) -> Result<(), std::io::Error> {
+    let mut buf = Vec::new();
+
+    #[cfg(feature = "tracing")]
+    tracing::info!("Sending packet: {}", packet);
+
+    packet.write_to(&mut buf)?;
+
+    #[cfg(feature = "tracing")]
+    tracing::trace!("Packet:\n{}", PCap::build(buf.clone()));
+
+    let mut writer = stream;
+    writer.write_all(&buf)
+}

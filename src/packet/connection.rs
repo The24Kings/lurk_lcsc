@@ -49,7 +49,7 @@ pub struct PktConnection {
 /// ```
 macro_rules! send_connection {
     ($stream:expr, $connection:expr) => {
-        if let Err(e) = $crate::Protocol::Connection($stream, $connection).send() {
+        if let Err(e) = $crate::send_to($stream.as_ref(), &$connection) {
             eprintln!("Failed to send connection packet: {}", e);
         }
     };
@@ -67,7 +67,7 @@ impl std::fmt::Display for PktConnection {
 }
 
 impl Parser<'_> for PktConnection {
-    fn serialize<W: Write>(self, writer: &mut W) -> Result<(), std::io::Error> {
+    fn write_to<W: Write>(&self, writer: &mut W) -> Result<(), std::io::Error> {
         // Package into a byte array
         let mut packet: Vec<u8> = vec![self.packet_type.into()];
 
@@ -88,7 +88,7 @@ impl Parser<'_> for PktConnection {
         Ok(())
     }
 
-    fn deserialize(packet: Packet) -> Self {
+    fn decode(packet: Packet) -> Self {
         let message_type = packet.packet_type;
         let room_number = u16::from_le_bytes([packet.body[0], packet.body[1]]);
         let room_name = String::from_utf8_lossy(&packet.body[2..34])
@@ -131,7 +131,7 @@ mod tests {
         let packet = Packet::new(&stream, type_byte, &original_bytes[1..]);
 
         // Deserialize the packet into a PktConnection
-        let message = <PktConnection as Parser>::deserialize(packet);
+        let message = PktConnection::decode(packet);
 
         // Assert the fields were parsed correctly
         assert_eq!(message.packet_type, PktType::CONNECTION);
@@ -145,9 +145,7 @@ mod tests {
 
         // Serialize the message back into bytes
         let mut buffer: Vec<u8> = Vec::new();
-        message
-            .serialize(&mut buffer)
-            .expect("Serialization failed");
+        message.write_to(&mut buffer).expect("Encoding failed");
 
         // Assert that the serialized bytes match the original
         assert_eq!(buffer, original_bytes);
@@ -169,7 +167,7 @@ mod tests {
         body.extend(desc.as_bytes());
 
         let packet = Packet::new(&stream, PktType::CONNECTION, &body);
-        let conn = <PktConnection as Parser>::deserialize(packet);
+        let conn = PktConnection::decode(packet);
 
         assert_eq!(conn.room_number, 1);
         assert_eq!(conn.room_name.as_ref(), room_name);
@@ -188,7 +186,7 @@ mod tests {
         body.extend(0u16.to_le_bytes());
 
         let packet = Packet::new(&stream, PktType::CONNECTION, &body);
-        let conn = <PktConnection as Parser>::deserialize(packet);
+        let conn = PktConnection::decode(packet);
 
         assert_eq!(conn.description_len, 0);
         assert_eq!(conn.description.as_ref(), "");
@@ -206,7 +204,7 @@ mod tests {
         body.extend(0u16.to_le_bytes());
 
         let packet = Packet::new(&stream, PktType::CONNECTION, &body);
-        let conn = <PktConnection as Parser>::deserialize(packet);
+        let conn = PktConnection::decode(packet);
 
         assert_eq!(conn.room_number, u16::MAX);
     }
@@ -224,12 +222,10 @@ mod tests {
         };
 
         let mut buffer: Vec<u8> = Vec::new();
-        original
-            .serialize(&mut buffer)
-            .expect("Serialization failed");
+        original.write_to(&mut buffer).expect("Encoding failed");
 
         let packet = Packet::new(&stream, PktType::CONNECTION, &buffer[1..]);
-        let deserialized = <PktConnection as Parser>::deserialize(packet);
+        let deserialized = PktConnection::decode(packet);
 
         assert_eq!(deserialized.room_number, 7);
         assert_eq!(deserialized.room_name.as_ref(), "Secret Door");
@@ -250,7 +246,7 @@ mod tests {
         body.extend(desc.as_bytes());
 
         let packet = Packet::new(&stream, PktType::CONNECTION, &body);
-        let conn = <PktConnection as Parser>::deserialize(packet);
+        let conn = PktConnection::decode(packet);
 
         assert_eq!(conn.description.len(), 5000);
     }
@@ -268,7 +264,7 @@ mod tests {
         body.extend(&[0xFC, 0xFB]);
 
         let packet = Packet::new(&stream, PktType::CONNECTION, &body);
-        let conn = <PktConnection as Parser>::deserialize(packet);
+        let conn = PktConnection::decode(packet);
 
         assert!(conn.room_name.contains('\u{FFFD}'));
         assert!(conn.description.contains('\u{FFFD}'));
@@ -281,7 +277,7 @@ mod tests {
         let stream = test_common::setup();
         let body: &[u8] = &[0x00, 0x00, 0x41]; // Need at least 36
         let packet = Packet::new(&stream, PktType::CONNECTION, body);
-        let _ = <PktConnection as Parser>::deserialize(packet);
+        let _ = PktConnection::decode(packet);
     }
 
     /// Empty body should panic.
@@ -291,7 +287,7 @@ mod tests {
         let stream = test_common::setup();
         let body: &[u8] = &[];
         let packet = Packet::new(&stream, PktType::CONNECTION, body);
-        let _ = <PktConnection as Parser>::deserialize(packet);
+        let _ = PktConnection::decode(packet);
     }
 
     /// All zeros body.
@@ -300,7 +296,7 @@ mod tests {
         let stream = test_common::setup();
         let body: Vec<u8> = vec![0x00; 36];
         let packet = Packet::new(&stream, PktType::CONNECTION, &body);
-        let conn = <PktConnection as Parser>::deserialize(packet);
+        let conn = PktConnection::decode(packet);
 
         assert_eq!(conn.room_number, 0);
         assert_eq!(conn.room_name.as_ref(), "");

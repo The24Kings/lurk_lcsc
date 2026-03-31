@@ -39,7 +39,7 @@ impl PktAccept {
 /// ```
 macro_rules! send_accept {
     ($stream:expr, $p_type:expr) => {
-        if let Err(e) = $crate::Protocol::Accept($stream, $crate::PktAccept::new($p_type)).send() {
+        if let Err(e) = $crate::send_to($stream.as_ref(), &$crate::PktAccept::new($p_type)) {
             eprintln!("Failed to send 'ACCEPT' packet: {}", e);
         }
     };
@@ -57,7 +57,7 @@ impl std::fmt::Display for PktAccept {
 }
 
 impl Parser<'_> for PktAccept {
-    fn serialize<W: Write>(self, writer: &mut W) -> Result<(), std::io::Error> {
+    fn write_to<W: Write>(&self, writer: &mut W) -> Result<(), std::io::Error> {
         // Package into a byte array
         let mut packet: Vec<u8> = Vec::new();
 
@@ -72,7 +72,7 @@ impl Parser<'_> for PktAccept {
         Ok(())
     }
 
-    fn deserialize(packet: Packet) -> Self {
+    fn decode(packet: Packet) -> Self {
         Self {
             packet_type: packet.packet_type,
             accept_type: packet.body[0],
@@ -96,7 +96,7 @@ mod tests {
         let packet = Packet::new(&stream, type_byte, &original_bytes[1..]);
 
         // Deserialize the packet into a PktAccept
-        let message = <PktAccept as Parser>::deserialize(packet);
+        let message = PktAccept::decode(packet);
 
         // Assert the fields were parsed correctly
         assert_eq!(message.packet_type, PktType::ACCEPT);
@@ -104,9 +104,7 @@ mod tests {
 
         // Serialize the message back into bytes
         let mut buffer: Vec<u8> = Vec::new();
-        message
-            .serialize(&mut buffer)
-            .expect("Serialization failed");
+        message.write_to(&mut buffer).expect("Encoding failed");
 
         // Assert that the serialized bytes match the original
         assert_eq!(buffer, original_bytes);
@@ -119,7 +117,7 @@ mod tests {
         let stream = test_common::setup();
         let body: &[u8] = &[0x0a]; // CHARACTER = 10
         let packet = Packet::new(&stream, PktType::ACCEPT, body);
-        let acc = <PktAccept as Parser>::deserialize(packet);
+        let acc = PktAccept::decode(packet);
 
         assert_eq!(acc.accept_type, 10);
         assert_eq!(acc.accept_type, u8::from(PktType::CHARACTER));
@@ -153,10 +151,10 @@ mod tests {
 
             // Serialize and deserialize roundtrip
             let mut buffer: Vec<u8> = Vec::new();
-            acc.serialize(&mut buffer).expect("Serialization failed");
+            acc.write_to(&mut buffer).expect("Encoding failed");
 
             let packet = Packet::new(&stream, PktType::ACCEPT, &buffer[1..]);
-            let deserialized = <PktAccept as Parser>::deserialize(packet);
+            let deserialized = PktAccept::decode(packet);
             assert_eq!(deserialized.accept_type, u8::from(pkt_type));
         }
     }
@@ -167,7 +165,7 @@ mod tests {
         let stream = test_common::setup();
         let body: &[u8] = &[0xFF];
         let packet = Packet::new(&stream, PktType::ACCEPT, body);
-        let acc = <PktAccept as Parser>::deserialize(packet);
+        let acc = PktAccept::decode(packet);
 
         assert_eq!(acc.accept_type, 255);
     }
@@ -178,7 +176,7 @@ mod tests {
         let stream = test_common::setup();
         let body: &[u8] = &[0x00];
         let packet = Packet::new(&stream, PktType::ACCEPT, body);
-        let acc = <PktAccept as Parser>::deserialize(packet);
+        let acc = PktAccept::decode(packet);
 
         assert_eq!(acc.accept_type, 0);
     }
@@ -190,16 +188,14 @@ mod tests {
         let original = PktAccept::new(PktType::MESSAGE);
 
         let mut buffer: Vec<u8> = Vec::new();
-        original
-            .serialize(&mut buffer)
-            .expect("Serialization failed");
+        original.write_to(&mut buffer).expect("Encoding failed");
 
         assert_eq!(buffer.len(), 2);
         assert_eq!(buffer[0], u8::from(PktType::ACCEPT));
         assert_eq!(buffer[1], u8::from(PktType::MESSAGE));
 
         let packet = Packet::new(&stream, PktType::ACCEPT, &buffer[1..]);
-        let deserialized = <PktAccept as Parser>::deserialize(packet);
+        let deserialized = PktAccept::decode(packet);
         assert_eq!(deserialized.accept_type, u8::from(PktType::MESSAGE));
     }
 
@@ -210,7 +206,7 @@ mod tests {
         let stream = test_common::setup();
         let body: &[u8] = &[];
         let packet = Packet::new(&stream, PktType::ACCEPT, body);
-        let _ = <PktAccept as Parser>::deserialize(packet);
+        let _ = PktAccept::decode(packet);
     }
 
     /// Extra trailing bytes should be ignored.
@@ -219,7 +215,7 @@ mod tests {
         let stream = test_common::setup();
         let body: &[u8] = &[0x0a, 0xFF, 0xFF, 0xFF];
         let packet = Packet::new(&stream, PktType::ACCEPT, body);
-        let acc = <PktAccept as Parser>::deserialize(packet);
+        let acc = PktAccept::decode(packet);
 
         assert_eq!(acc.accept_type, 10);
     }
