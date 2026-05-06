@@ -1,13 +1,10 @@
 use std::io::Read as _;
-use std::io::Write;
 use std::io::{Error, ErrorKind};
 use std::net::TcpStream;
 use std::sync::Arc;
 
 #[cfg(feature = "tracing")]
-use crate::pcap::PCap;
-#[cfg(feature = "tracing")]
-use tracing::{info, trace};
+use tracing::info;
 
 use crate::{
     Packet, Parser, PktAccept, PktChangeRoom, PktCharacter, PktConnection, PktError, PktFight,
@@ -15,39 +12,37 @@ use crate::{
 };
 
 /// Represents all possible protocol packets exchanged between the client and server.
+///
+/// Each variant wraps the deserialized packet data as plain Rust structs,
+/// providing a pure wire-format translation layer with no connection state.
 pub enum Protocol {
     /// Packet containing a message sent between client and server.
-    Message(Arc<TcpStream>, PktMessage),
+    Message(PktMessage),
     /// Packet containing a request to change the room.
-    ChangeRoom(Arc<TcpStream>, PktChangeRoom),
+    ChangeRoom(PktChangeRoom),
     /// Packet containing a fight request.
-    Fight(Arc<TcpStream>, PktFight),
+    Fight(PktFight),
     /// Packet containing a player-versus-player fight request.
-    PVPFight(Arc<TcpStream>, PktPVPFight),
+    PVPFight(PktPVPFight),
     /// Packet containing a loot request.
-    Loot(Arc<TcpStream>, PktLoot),
+    Loot(PktLoot),
     /// Packet containing a start request.
-    Start(Arc<TcpStream>, PktStart),
+    Start(PktStart),
     /// Packet containing an error response.
-    Error(Arc<TcpStream>, PktError),
+    Error(PktError),
     /// Packet containing an acceptance response.
-    Accept(Arc<TcpStream>, PktAccept),
+    Accept(PktAccept),
     /// Packet containing room information.
-    Room(Arc<TcpStream>, PktRoom),
+    Room(PktRoom),
     /// Packet containing character information.
-    Character(Arc<TcpStream>, PktCharacter),
+    Character(PktCharacter),
     /// Packet containing game information.
     /// Must be sent __second__ on new connections.
     ///
-    /// ```no_run
+    /// ```
     /// use lurk_lcsc::{Protocol, PktGame, PktType};
-    /// use std::sync::Arc;
-    /// use std::net::TcpStream;
     ///
-    /// let stream = Arc::new(TcpStream::connect("127.0.0.1:8080").unwrap());
-    ///
-    /// Protocol::Game(
-    ///     stream.clone(),
+    /// let protocol = Protocol::Game(
     ///     PktGame {
     ///         packet_type: PktType::GAME,
     ///         initial_points: 100,
@@ -55,27 +50,20 @@ pub enum Protocol {
     ///         description_len: 17,
     ///         description: Box::from("Test Description."),
     ///     },
-    /// )
-    /// .send()
-    /// .expect("Failed to send game packet");
+    /// );
     /// ```
-    Game(Arc<TcpStream>, PktGame),
+    Game(PktGame),
     /// Packet containing leave information.
-    Leave(Arc<TcpStream>, PktLeave),
+    Leave(PktLeave),
     /// Packet containing connection information.
-    Connection(Arc<TcpStream>, PktConnection),
+    Connection(PktConnection),
     /// Packet containing version information.
     /// Must be sent __first__ on new connections.
     ///
-    /// ```no_run
+    /// ```
     /// use lurk_lcsc::{Protocol, PktVersion, PktType};
-    /// use std::sync::Arc;
-    /// use std::net::TcpStream;
     ///
-    /// let stream = Arc::new(TcpStream::connect("127.0.0.1:8080").unwrap());
-    ///
-    /// Protocol::Version(
-    ///     stream.clone(),
+    /// let protocol = Protocol::Version(
     ///     PktVersion {
     ///         packet_type: PktType::VERSION,
     ///         major_rev: 2,
@@ -83,146 +71,51 @@ pub enum Protocol {
     ///         extensions_len: 0,
     ///         extensions: None,
     ///     },
-    /// )
-    /// .send()
-    /// .expect("Failed to send version packet");
+    /// );
     /// ```
-    Version(Arc<TcpStream>, PktVersion),
+    Version(PktVersion),
 }
 
 impl std::fmt::Display for Protocol {
     /// Formats the `Protocol` enum variant as a human-readable string.
     ///
-    /// ```no_run
+    /// ```
     /// use lurk_lcsc::{Protocol, PktMessage};
-    /// use std::net::TcpStream;
-    /// use std::sync::Arc;
     ///
-    ///
-    /// let stream = Arc::new(TcpStream::connect("127.0.0.1:8080").unwrap());
     /// let pkt_message = PktMessage::server("Recipient", "Hello, server!");
-    /// let protocol = Protocol::Message(stream, pkt_message);
+    /// let protocol = Protocol::Message(pkt_message);
     ///
     /// println!("{}", protocol); // Displays the serialized message packet
     /// ```
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Protocol::Message(_, msg) => write!(f, "{}", msg),
-            Protocol::ChangeRoom(_, room) => write!(f, "{}", room),
-            Protocol::Fight(_, fight) => write!(f, "{}", fight),
-            Protocol::PVPFight(_, pvp_fight) => write!(f, "{}", pvp_fight),
-            Protocol::Loot(_, loot) => write!(f, "{}", loot),
-            Protocol::Start(_, start) => write!(f, "{}", start),
-            Protocol::Error(_, error) => write!(f, "{}", error),
-            Protocol::Accept(_, accept) => write!(f, "{}", accept),
-            Protocol::Room(_, room) => write!(f, "{}", room),
-            Protocol::Character(_, character) => write!(f, "{}", character),
-            Protocol::Game(_, game) => write!(f, "{}", game),
-            Protocol::Leave(_, leave) => write!(f, "{}", leave),
-            Protocol::Connection(_, connection) => write!(f, "{}", connection),
-            Protocol::Version(_, version) => write!(f, "{}", version),
+            Protocol::Message(msg) => write!(f, "{}", msg),
+            Protocol::ChangeRoom(room) => write!(f, "{}", room),
+            Protocol::Fight(fight) => write!(f, "{}", fight),
+            Protocol::PVPFight(pvp_fight) => write!(f, "{}", pvp_fight),
+            Protocol::Loot(loot) => write!(f, "{}", loot),
+            Protocol::Start(start) => write!(f, "{}", start),
+            Protocol::Error(error) => write!(f, "{}", error),
+            Protocol::Accept(accept) => write!(f, "{}", accept),
+            Protocol::Room(room) => write!(f, "{}", room),
+            Protocol::Character(character) => write!(f, "{}", character),
+            Protocol::Game(game) => write!(f, "{}", game),
+            Protocol::Leave(leave) => write!(f, "{}", leave),
+            Protocol::Connection(connection) => write!(f, "{}", connection),
+            Protocol::Version(version) => write!(f, "{}", version),
         }
     }
 }
 
 impl Protocol {
-    /// Serializes and sends the protocol packet to the server.
-    ///
-    /// ```no_run
-    /// use lurk_lcsc::{Protocol, PktMessage};
-    /// use std::net::TcpStream;
-    /// use std::sync::Arc;
-    ///
-    /// let stream = Arc::new(TcpStream::connect("127.0.0.1:8080").unwrap());
-    /// let pkt_message = PktMessage::server("Recipient", "Message");
-    ///
-    /// // Send the packet to connected user
-    /// Protocol::Message(stream.clone(), pkt_message).send().unwrap();
-    /// ```
-    pub fn send(&self) -> Result<(), std::io::Error> {
-        let mut byte_stream: Vec<u8> = Vec::new();
-
-        #[cfg(feature = "tracing")]
-        info!("Sending packet: {}", self);
-
-        // Serialize the packet and send it to the server
-        let author = match self {
-            Protocol::Message(author, content) => {
-                content.write_to(&mut byte_stream)?;
-                author
-            }
-            Protocol::ChangeRoom(author, content) => {
-                content.write_to(&mut byte_stream)?;
-                author
-            }
-            Protocol::Fight(author, content) => {
-                content.write_to(&mut byte_stream)?;
-                author
-            }
-            Protocol::PVPFight(author, content) => {
-                content.write_to(&mut byte_stream)?;
-                author
-            }
-            Protocol::Loot(author, content) => {
-                content.write_to(&mut byte_stream)?;
-                author
-            }
-            Protocol::Start(author, content) => {
-                content.write_to(&mut byte_stream)?;
-                author
-            }
-            Protocol::Error(author, content) => {
-                content.write_to(&mut byte_stream)?;
-                author
-            }
-            Protocol::Accept(author, content) => {
-                content.write_to(&mut byte_stream)?;
-                author
-            }
-            Protocol::Room(author, content) => {
-                content.write_to(&mut byte_stream)?;
-                author
-            }
-            Protocol::Character(author, content) => {
-                content.write_to(&mut byte_stream)?;
-                author
-            }
-            Protocol::Game(author, content) => {
-                content.write_to(&mut byte_stream)?;
-                author
-            }
-            Protocol::Leave(author, content) => {
-                content.write_to(&mut byte_stream)?;
-                author
-            }
-            Protocol::Connection(author, content) => {
-                content.write_to(&mut byte_stream)?;
-                author
-            }
-            Protocol::Version(author, content) => {
-                content.write_to(&mut byte_stream)?;
-                author
-            }
-        };
-
-        #[cfg(feature = "tracing")]
-        trace!("Packet:\n{}", PCap::build(byte_stream.clone()));
-
-        author.as_ref().write_all(&byte_stream)?;
-
-        Ok(())
-    }
-
     /// Receive one packet from the connected TcpStream
     ///
     /// ```no_run
     /// use lurk_lcsc::Protocol;
     /// use std::net::TcpStream;
-    /// use std::sync::{Arc, mpsc};
+    /// use std::sync::Arc;
     ///
-    /// let (tx, _rx) = mpsc::channel::<Protocol>();
     /// let stream = Arc::new(TcpStream::connect("127.0.0.1:8080").unwrap());
-    /// let sender = Arc::new(tx);
     ///
     /// loop {
     ///     let packet = match Protocol::recv(&stream) {
@@ -234,7 +127,7 @@ impl Protocol {
     ///     };
     ///
     ///     match packet {
-    ///         Protocol::Leave(author, content) => {
+    ///         Protocol::Leave(_leave) => {
     ///             // Handle leave packet
     ///         },
     ///         _ => {
@@ -257,95 +150,80 @@ impl Protocol {
 
                 let pkt = Packet::read_extended(stream, packet_type, &mut buffer, (0, 1))?;
 
-                Ok(Protocol::Message(stream.clone(), PktMessage::decode(pkt)))
+                Ok(Protocol::Message(PktMessage::decode(pkt)))
             }
             PktType::CHANGEROOM => {
                 let mut buffer = vec![0; 2];
 
                 let packet = Packet::read_into(stream, packet_type, &mut buffer)?;
 
-                Ok(Protocol::ChangeRoom(
-                    stream.clone(),
-                    PktChangeRoom::decode(packet),
-                ))
+                Ok(Protocol::ChangeRoom(PktChangeRoom::decode(packet)))
             }
-            PktType::FIGHT => Ok(Protocol::Fight(stream.clone(), PktFight::default())),
+            PktType::FIGHT => Ok(Protocol::Fight(PktFight::default())),
             PktType::PVPFIGHT => {
                 let mut buffer = vec![0; 32];
 
                 let packet = Packet::read_into(stream, packet_type, &mut buffer)?;
 
-                Ok(Protocol::PVPFight(
-                    stream.clone(),
-                    PktPVPFight::decode(packet),
-                ))
+                Ok(Protocol::PVPFight(PktPVPFight::decode(packet)))
             }
             PktType::LOOT => {
                 let mut buffer = vec![0; 32];
 
                 let packet = Packet::read_into(stream, packet_type, &mut buffer)?;
 
-                Ok(Protocol::Loot(stream.clone(), PktLoot::decode(packet)))
+                Ok(Protocol::Loot(PktLoot::decode(packet)))
             }
-            PktType::START => Ok(Protocol::Start(stream.clone(), PktStart::default())),
+            PktType::START => Ok(Protocol::Start(PktStart::default())),
             PktType::ERROR => {
                 let mut buffer = vec![0; 3];
 
                 let packet = Packet::read_extended(stream, packet_type, &mut buffer, (1, 2))?;
 
-                Ok(Protocol::Error(stream.clone(), PktError::decode(packet)))
+                Ok(Protocol::Error(PktError::decode(packet)))
             }
             PktType::ACCEPT => {
                 let mut buffer = vec![0; 1];
 
                 let packet = Packet::read_into(stream, packet_type, &mut buffer)?;
 
-                Ok(Protocol::Accept(stream.clone(), PktAccept::decode(packet)))
+                Ok(Protocol::Accept(PktAccept::decode(packet)))
             }
             PktType::ROOM => {
                 let mut buffer = vec![0; 36];
 
                 let packet = Packet::read_extended(stream, packet_type, &mut buffer, (34, 35))?;
 
-                Ok(Protocol::Room(stream.clone(), PktRoom::decode(packet)))
+                Ok(Protocol::Room(PktRoom::decode(packet)))
             }
             PktType::CHARACTER => {
                 let mut buffer = vec![0; 47];
 
                 let packet = Packet::read_extended(stream, packet_type, &mut buffer, (45, 46))?;
 
-                Ok(Protocol::Character(
-                    stream.clone(),
-                    PktCharacter::decode(packet),
-                ))
+                Ok(Protocol::Character(PktCharacter::decode(packet)))
             }
             PktType::GAME => {
                 let mut buffer = vec![0; 6];
 
                 let packet = Packet::read_extended(stream, packet_type, &mut buffer, (4, 5))?;
 
-                Ok(Protocol::Game(stream.clone(), PktGame::decode(packet)))
+                Ok(Protocol::Game(PktGame::decode(packet)))
             }
-            PktType::LEAVE => Ok(Protocol::Leave(stream.clone(), PktLeave::default())),
+            PktType::LEAVE => Ok(Protocol::Leave(PktLeave::default())),
             PktType::CONNECTION => {
                 let mut buffer = vec![0; 36];
 
                 let packet = Packet::read_extended(stream, packet_type, &mut buffer, (34, 35))?;
 
-                Ok(Protocol::Connection(
-                    stream.clone(),
-                    PktConnection::decode(packet),
-                ))
+                Ok(Protocol::Connection(PktConnection::decode(packet)))
             }
             PktType::VERSION => {
                 let mut buffer = vec![0; 4];
 
                 let packet = Packet::read_extended(stream, packet_type, &mut buffer, (2, 3))?;
 
-                Ok(Protocol::Version(
-                    stream.clone(),
-                    PktVersion::decode(packet),
-                ))
+                Ok(Protocol::Version(PktVersion::decode(packet)))
             }
             PktType::DEFAULT => Err(Error::new(ErrorKind::Unsupported, "Invalid packet type")),
         }
@@ -356,23 +234,19 @@ impl Protocol {
 mod tests {
     use super::*;
 
-    use crate::test_common;
-
     /// Protocol::Display must produce non-empty output for every variant.
     #[test]
     fn protocol_display_message() {
-        let stream = test_common::setup();
         let pkt = PktMessage::server("Recipient", "Hello");
-        let proto = Protocol::Message(stream, pkt);
+        let proto = Protocol::Message(pkt);
         let output = format!("{}", proto);
         assert!(!output.is_empty(), "Display for Message must be non-empty");
     }
 
     #[test]
     fn protocol_display_changeroom() {
-        let stream = test_common::setup();
         let pkt = PktChangeRoom::from(1u16);
-        let proto = Protocol::ChangeRoom(stream, pkt);
+        let proto = Protocol::ChangeRoom(pkt);
         let output = format!("{}", proto);
         assert!(
             !output.is_empty(),
@@ -382,61 +256,54 @@ mod tests {
 
     #[test]
     fn protocol_display_fight() {
-        let stream = test_common::setup();
         let pkt = PktFight::default();
-        let proto = Protocol::Fight(stream, pkt);
+        let proto = Protocol::Fight(pkt);
         let output = format!("{}", proto);
         assert!(!output.is_empty(), "Display for Fight must be non-empty");
     }
 
     #[test]
     fn protocol_display_pvpfight() {
-        let stream = test_common::setup();
         let pkt = PktPVPFight::fight("Target");
-        let proto = Protocol::PVPFight(stream, pkt);
+        let proto = Protocol::PVPFight(pkt);
         let output = format!("{}", proto);
         assert!(!output.is_empty(), "Display for PVPFight must be non-empty");
     }
 
     #[test]
     fn protocol_display_loot() {
-        let stream = test_common::setup();
         let pkt = PktLoot::loot("Monster");
-        let proto = Protocol::Loot(stream, pkt);
+        let proto = Protocol::Loot(pkt);
         let output = format!("{}", proto);
         assert!(!output.is_empty(), "Display for Loot must be non-empty");
     }
 
     #[test]
     fn protocol_display_start() {
-        let stream = test_common::setup();
         let pkt = PktStart::default();
-        let proto = Protocol::Start(stream, pkt);
+        let proto = Protocol::Start(pkt);
         let output = format!("{}", proto);
         assert!(!output.is_empty(), "Display for Start must be non-empty");
     }
 
     #[test]
     fn protocol_display_error() {
-        let stream = test_common::setup();
         let pkt = PktError::new(crate::LurkError::OTHER, "test");
-        let proto = Protocol::Error(stream, pkt);
+        let proto = Protocol::Error(pkt);
         let output = format!("{}", proto);
         assert!(!output.is_empty(), "Display for Error must be non-empty");
     }
 
     #[test]
     fn protocol_display_accept() {
-        let stream = test_common::setup();
         let pkt = PktAccept::new(PktType::CHARACTER);
-        let proto = Protocol::Accept(stream, pkt);
+        let proto = Protocol::Accept(pkt);
         let output = format!("{}", proto);
         assert!(!output.is_empty(), "Display for Accept must be non-empty");
     }
 
     #[test]
     fn protocol_display_room() {
-        let stream = test_common::setup();
         let pkt = PktRoom {
             packet_type: PktType::ROOM,
             room_number: 1,
@@ -444,14 +311,13 @@ mod tests {
             description_len: 4,
             description: "desc".into(),
         };
-        let proto = Protocol::Room(stream, pkt);
+        let proto = Protocol::Room(pkt);
         let output = format!("{}", proto);
         assert!(!output.is_empty(), "Display for Room must be non-empty");
     }
 
     #[test]
     fn protocol_display_character() {
-        let stream = test_common::setup();
         let pkt = PktCharacter {
             packet_type: PktType::CHARACTER,
             name: "Hero".into(),
@@ -465,7 +331,7 @@ mod tests {
             description_len: 4,
             description: "desc".into(),
         };
-        let proto = Protocol::Character(stream, pkt);
+        let proto = Protocol::Character(pkt);
         let output = format!("{}", proto);
         assert!(
             !output.is_empty(),
@@ -475,7 +341,6 @@ mod tests {
 
     #[test]
     fn protocol_display_game() {
-        let stream = test_common::setup();
         let pkt = PktGame {
             packet_type: PktType::GAME,
             initial_points: 100,
@@ -483,23 +348,21 @@ mod tests {
             description_len: 4,
             description: "desc".into(),
         };
-        let proto = Protocol::Game(stream, pkt);
+        let proto = Protocol::Game(pkt);
         let output = format!("{}", proto);
         assert!(!output.is_empty(), "Display for Game must be non-empty");
     }
 
     #[test]
     fn protocol_display_leave() {
-        let stream = test_common::setup();
         let pkt = PktLeave::default();
-        let proto = Protocol::Leave(stream, pkt);
+        let proto = Protocol::Leave(pkt);
         let output = format!("{}", proto);
         assert!(!output.is_empty(), "Display for Leave must be non-empty");
     }
 
     #[test]
     fn protocol_display_connection() {
-        let stream = test_common::setup();
         let pkt = PktConnection {
             packet_type: PktType::CONNECTION,
             room_number: 1,
@@ -507,7 +370,7 @@ mod tests {
             description_len: 4,
             description: "desc".into(),
         };
-        let proto = Protocol::Connection(stream, pkt);
+        let proto = Protocol::Connection(pkt);
         let output = format!("{}", proto);
         assert!(
             !output.is_empty(),
@@ -517,7 +380,6 @@ mod tests {
 
     #[test]
     fn protocol_display_version() {
-        let stream = test_common::setup();
         let pkt = PktVersion {
             packet_type: PktType::VERSION,
             major_rev: 2,
@@ -525,7 +387,7 @@ mod tests {
             extensions_len: 0,
             extensions: None,
         };
-        let proto = Protocol::Version(stream, pkt);
+        let proto = Protocol::Version(pkt);
         let output = format!("{}", proto);
         assert!(!output.is_empty(), "Display for Version must be non-empty");
     }

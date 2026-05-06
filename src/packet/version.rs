@@ -95,18 +95,15 @@ impl Parser<'_> for PktVersion {
 
 #[cfg(test)]
 mod tests {
-    use crate::test_common;
-
     use super::*;
 
     #[test]
     fn version_parse_and_serialize() {
-        let stream = test_common::setup();
         let type_byte = PktType::VERSION;
         let original_bytes: &[u8; 5] = &[0x0e, 0x02, 0x03, 0x00, 0x00];
 
         // Create a packet with known bytes, excluding the type byte
-        let packet = Packet::new(&stream, type_byte, &original_bytes[1..]);
+        let packet = Packet::new(type_byte, &original_bytes[1..]);
 
         // Deserialize the packet into a PktVersion
         let message = PktVersion::decode(packet);
@@ -130,10 +127,9 @@ mod tests {
     /// Verify parsing the exact bytes captured from the ZeldaServer trace output.
     #[test]
     fn version_parse_trace_bytes() {
-        let stream = test_common::setup();
         // From trace: 0e 02 03 00 00
         let body: &[u8] = &[0x02, 0x03, 0x00, 0x00];
-        let packet = Packet::new(&stream, PktType::VERSION, body);
+        let packet = Packet::new(PktType::VERSION, body);
         let ver = PktVersion::decode(packet);
 
         assert_eq!(ver.major_rev, 2);
@@ -145,9 +141,8 @@ mod tests {
     /// Max u8 values for major and minor revision numbers.
     #[test]
     fn version_max_revisions() {
-        let stream = test_common::setup();
         let body: &[u8] = &[0xFF, 0xFF, 0x00, 0x00];
-        let packet = Packet::new(&stream, PktType::VERSION, body);
+        let packet = Packet::new(PktType::VERSION, body);
         let ver = PktVersion::decode(packet);
 
         assert_eq!(ver.major_rev, 255);
@@ -157,9 +152,8 @@ mod tests {
     /// Zero major and minor revisions.
     #[test]
     fn version_zero_revisions() {
-        let stream = test_common::setup();
         let body: &[u8] = &[0x00, 0x00, 0x00, 0x00];
-        let packet = Packet::new(&stream, PktType::VERSION, body);
+        let packet = Packet::new(PktType::VERSION, body);
         let ver = PktVersion::decode(packet);
 
         assert_eq!(ver.major_rev, 0);
@@ -211,7 +205,6 @@ mod tests {
     /// Roundtrip: construct, serialize, then deserialize and verify equality.
     #[test]
     fn version_roundtrip() {
-        let stream = test_common::setup();
         let original = PktVersion {
             packet_type: PktType::VERSION,
             major_rev: 10,
@@ -223,7 +216,7 @@ mod tests {
         let mut buffer: Vec<u8> = Vec::new();
         original.write_to(&mut buffer).expect("Encoding failed");
 
-        let packet = Packet::new(&stream, PktType::VERSION, &buffer[1..]);
+        let packet = Packet::new(PktType::VERSION, &buffer[1..]);
         let deserialized = PktVersion::decode(packet);
 
         assert_eq!(deserialized.major_rev, 10);
@@ -233,9 +226,8 @@ mod tests {
     /// Body with extra trailing bytes should still parse correctly (only first bytes used).
     #[test]
     fn version_extra_trailing_bytes() {
-        let stream = test_common::setup();
         let body: &[u8] = &[0x02, 0x03, 0x00, 0x00, 0xFF, 0xFF, 0xFF];
-        let packet = Packet::new(&stream, PktType::VERSION, body);
+        let packet = Packet::new(PktType::VERSION, body);
         let ver = PktVersion::decode(packet);
 
         assert_eq!(ver.major_rev, 2);
@@ -246,9 +238,8 @@ mod tests {
     #[test]
     #[should_panic]
     fn version_body_too_short_panics() {
-        let stream = test_common::setup();
         let body: &[u8] = &[0x02]; // Only 1 byte, need at least 2
-        let packet = Packet::new(&stream, PktType::VERSION, body);
+        let packet = Packet::new(PktType::VERSION, body);
         let _ = PktVersion::decode(packet);
     }
 
@@ -256,18 +247,16 @@ mod tests {
     #[test]
     #[should_panic]
     fn version_empty_body_panics() {
-        let stream = test_common::setup();
         let body: &[u8] = &[];
-        let packet = Packet::new(&stream, PktType::VERSION, body);
+        let packet = Packet::new(PktType::VERSION, body);
         let _ = PktVersion::decode(packet);
     }
 
     /// All 0xFF bytes in body.
     #[test]
     fn version_all_ones_body() {
-        let stream = test_common::setup();
         let body: &[u8] = &[0xFF, 0xFF, 0xFF, 0xFF];
-        let packet = Packet::new(&stream, PktType::VERSION, body);
+        let packet = Packet::new(PktType::VERSION, body);
         let ver = PktVersion::decode(packet);
 
         assert_eq!(ver.major_rev, 255);
@@ -277,9 +266,8 @@ mod tests {
     /// All 0x00 bytes in body.
     #[test]
     fn version_all_zeros_body() {
-        let stream = test_common::setup();
         let body: &[u8] = &[0x00, 0x00, 0x00, 0x00];
-        let packet = Packet::new(&stream, PktType::VERSION, body);
+        let packet = Packet::new(PktType::VERSION, body);
         let ver = PktVersion::decode(packet);
 
         assert_eq!(ver.major_rev, 0);

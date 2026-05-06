@@ -168,13 +168,10 @@ impl Parser<'_> for PktCharacter {
 
 #[cfg(test)]
 mod tests {
-    use crate::test_common;
-
     use super::*;
 
     #[test]
     fn character_parse_and_serialize() {
-        let stream = test_common::setup();
         let type_byte = PktType::CHARACTER;
         let original_bytes: &[u8; 74] = &[
             0x0a, 0x4c, 0x61, 0x64, 0x61, 0x77, 0x6e, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
@@ -186,7 +183,7 @@ mod tests {
         ];
 
         // Create a packet with known bytes, excluding the type byte
-        let packet = Packet::new(&stream, type_byte, &original_bytes[1..]);
+        let packet = Packet::new(type_byte, &original_bytes[1..]);
 
         // Deserialize the packet into a PktCharacter
         let message = PktCharacter::decode(packet);
@@ -215,7 +212,6 @@ mod tests {
     /// Parse a character with ALIVE | BATTLE | READY flags (from trace: Test initial).
     #[test]
     fn character_parse_trace_alive_battle_ready() {
-        let stream = test_common::setup();
         // Character "Test" with flags=0xC8 (ALIVE|BATTLE|READY), attack=33, defense=33, regen=34,
         // health=0, gold=0, room=0, desc_len=0, no description
         let mut body: Vec<u8> = Vec::new();
@@ -232,7 +228,7 @@ mod tests {
         body.extend(0u16.to_le_bytes()); // current_room
         body.extend(0u16.to_le_bytes()); // description_len
 
-        let packet = Packet::new(&stream, PktType::CHARACTER, &body);
+        let packet = Packet::new(PktType::CHARACTER, &body);
         let chr = PktCharacter::decode(packet);
 
         assert_eq!(chr.name.as_ref(), "Test");
@@ -254,7 +250,6 @@ mod tests {
     /// Parse a character with ALIVE | BATTLE | STARTED | READY flags (from trace: Test started).
     #[test]
     fn character_parse_trace_started() {
-        let stream = test_common::setup();
         let mut body: Vec<u8> = Vec::new();
         let mut name = b"Test".to_vec();
         name.resize(32, 0x00);
@@ -268,7 +263,7 @@ mod tests {
         body.extend(0u16.to_le_bytes());
         body.extend(0u16.to_le_bytes());
 
-        let packet = Packet::new(&stream, PktType::CHARACTER, &body);
+        let packet = Packet::new(PktType::CHARACTER, &body);
         let chr = PktCharacter::decode(packet);
 
         assert!(chr.flags.contains(CharacterFlags::ALIVE));
@@ -281,7 +276,6 @@ mod tests {
     /// Parse a monster character from trace bytes (Deku Baba, alive).
     #[test]
     fn character_parse_trace_monster_alive() {
-        let stream = test_common::setup();
         let mut body: Vec<u8> = Vec::new();
         let mut name = b"Deku Baba".to_vec();
         name.resize(32, 0x00);
@@ -297,7 +291,7 @@ mod tests {
         body.extend((desc.len() as u16).to_le_bytes());
         body.extend(desc.as_bytes());
 
-        let packet = Packet::new(&stream, PktType::CHARACTER, &body);
+        let packet = Packet::new(PktType::CHARACTER, &body);
         let chr = PktCharacter::decode(packet);
 
         assert_eq!(chr.name.as_ref(), "Deku Baba");
@@ -316,7 +310,6 @@ mod tests {
     /// Parse a dead monster from trace: negative health.
     #[test]
     fn character_parse_trace_monster_dead() {
-        let stream = test_common::setup();
         let mut body: Vec<u8> = Vec::new();
         let mut name = b"Deku Baba".to_vec();
         name.resize(32, 0x00);
@@ -332,7 +325,7 @@ mod tests {
         body.extend((desc.len() as u16).to_le_bytes());
         body.extend(desc.as_bytes());
 
-        let packet = Packet::new(&stream, PktType::CHARACTER, &body);
+        let packet = Packet::new(PktType::CHARACTER, &body);
         let chr = PktCharacter::decode(packet);
 
         assert!(!chr.flags.contains(CharacterFlags::ALIVE));
@@ -343,7 +336,6 @@ mod tests {
     /// Character with max stat values.
     #[test]
     fn character_max_stats() {
-        let stream = test_common::setup();
         let mut body: Vec<u8> = Vec::new();
         let mut name = b"MaxStats".to_vec();
         name.resize(32, 0x00);
@@ -357,7 +349,7 @@ mod tests {
         body.extend(u16::MAX.to_le_bytes()); // current_room
         body.extend(0u16.to_le_bytes()); // description_len
 
-        let packet = Packet::new(&stream, PktType::CHARACTER, &body);
+        let packet = Packet::new(PktType::CHARACTER, &body);
         let chr = PktCharacter::decode(packet);
 
         assert_eq!(chr.attack, u16::MAX);
@@ -371,7 +363,6 @@ mod tests {
     /// Character with minimum (negative) health.
     #[test]
     fn character_min_health() {
-        let stream = test_common::setup();
         let mut body: Vec<u8> = Vec::new();
         let mut name = b"MinHP".to_vec();
         name.resize(32, 0x00);
@@ -385,7 +376,7 @@ mod tests {
         body.extend(0u16.to_le_bytes());
         body.extend(0u16.to_le_bytes());
 
-        let packet = Packet::new(&stream, PktType::CHARACTER, &body);
+        let packet = Packet::new(PktType::CHARACTER, &body);
         let chr = PktCharacter::decode(packet);
 
         assert_eq!(chr.health, i16::MIN);
@@ -394,10 +385,9 @@ mod tests {
     /// Character with all zero stats.
     #[test]
     fn character_all_zeros() {
-        let stream = test_common::setup();
         let body: Vec<u8> = vec![0x00; 47]; // 32 name + 1 flags + 14 stats = 47
 
-        let packet = Packet::new(&stream, PktType::CHARACTER, &body);
+        let packet = Packet::new(PktType::CHARACTER, &body);
         let chr = PktCharacter::decode(packet);
 
         assert_eq!(chr.name.as_ref(), "");
@@ -414,7 +404,6 @@ mod tests {
     /// Character name that fills all 32 bytes (no null terminator padding).
     #[test]
     fn character_max_length_name() {
-        let stream = test_common::setup();
         let long_name = "A".repeat(32);
         let mut body: Vec<u8> = Vec::new();
         body.extend(long_name.as_bytes());
@@ -427,7 +416,7 @@ mod tests {
         body.extend(1u16.to_le_bytes());
         body.extend(0u16.to_le_bytes());
 
-        let packet = Packet::new(&stream, PktType::CHARACTER, &body);
+        let packet = Packet::new(PktType::CHARACTER, &body);
         let chr = PktCharacter::decode(packet);
 
         assert_eq!(chr.name.as_ref(), &long_name);
@@ -436,7 +425,6 @@ mod tests {
     /// Roundtrip: construct, serialize, then deserialize and verify.
     #[test]
     fn character_roundtrip() {
-        let stream = test_common::setup();
         let original = PktCharacter {
             packet_type: PktType::CHARACTER,
             name: Arc::from("TestHero"),
@@ -457,7 +445,7 @@ mod tests {
         let mut buffer: Vec<u8> = Vec::new();
         original.write_to(&mut buffer).expect("Encoding failed");
 
-        let packet = Packet::new(&stream, PktType::CHARACTER, &buffer[1..]);
+        let packet = Packet::new(PktType::CHARACTER, &buffer[1..]);
         let deserialized = PktCharacter::decode(packet);
 
         assert_eq!(deserialized.name.as_ref(), "TestHero");
@@ -480,7 +468,6 @@ mod tests {
     /// Non-UTF8 bytes in name should be handled by lossy conversion.
     #[test]
     fn character_non_utf8_name() {
-        let stream = test_common::setup();
         let mut body: Vec<u8> = Vec::new();
         let mut name = vec![0xFF, 0xFE, 0xFD, 0xFC];
         name.resize(32, 0x00);
@@ -488,7 +475,7 @@ mod tests {
         body.push(0x00);
         body.extend(vec![0u8; 14]); // stats
 
-        let packet = Packet::new(&stream, PktType::CHARACTER, &body);
+        let packet = Packet::new(PktType::CHARACTER, &body);
         let chr = PktCharacter::decode(packet);
 
         // Should contain replacement characters
@@ -499,9 +486,8 @@ mod tests {
     #[test]
     #[should_panic]
     fn character_body_too_short_panics() {
-        let stream = test_common::setup();
         let body: &[u8] = &[0x41; 20]; // Only 20 bytes, need at least 47
-        let packet = Packet::new(&stream, PktType::CHARACTER, body);
+        let packet = Packet::new(PktType::CHARACTER, body);
         let _ = PktCharacter::decode(packet);
     }
 
@@ -509,9 +495,8 @@ mod tests {
     #[test]
     #[should_panic]
     fn character_empty_body_panics() {
-        let stream = test_common::setup();
         let body: &[u8] = &[];
-        let packet = Packet::new(&stream, PktType::CHARACTER, body);
+        let packet = Packet::new(PktType::CHARACTER, body);
         let _ = PktCharacter::decode(packet);
     }
 
@@ -570,10 +555,9 @@ mod tests {
     /// All 0xFF body should parse with truncated flags.
     #[test]
     fn character_all_ones_body() {
-        let stream = test_common::setup();
         let body: Vec<u8> = vec![0xFF; 47];
 
-        let packet = Packet::new(&stream, PktType::CHARACTER, &body);
+        let packet = Packet::new(PktType::CHARACTER, &body);
         let chr = PktCharacter::decode(packet);
 
         // Flags are truncated to known bits
@@ -616,8 +600,6 @@ mod tests {
     /// Verify health underflow at i16 boundary values.
     #[test]
     fn character_health_boundary_values() {
-        let stream = test_common::setup();
-
         for &health in &[
             0i16,
             1,
@@ -642,7 +624,7 @@ mod tests {
             body.extend(0u16.to_le_bytes()); // room
             body.extend(0u16.to_le_bytes()); // desc_len
 
-            let packet = Packet::new(&stream, PktType::CHARACTER, &body);
+            let packet = Packet::new(PktType::CHARACTER, &body);
             let chr = PktCharacter::decode(packet);
             assert_eq!(chr.health, health, "Failed for health value: {}", health);
         }
@@ -651,8 +633,6 @@ mod tests {
     /// Gold at various u16 boundary values.
     #[test]
     fn character_gold_boundary_values() {
-        let stream = test_common::setup();
-
         for &gold in &[0u16, 1, 100, 1000, u16::MAX, u16::MAX - 1] {
             let mut body: Vec<u8> = Vec::new();
             let mut name = b"GoldTest".to_vec();
@@ -667,7 +647,7 @@ mod tests {
             body.extend(0u16.to_le_bytes());
             body.extend(0u16.to_le_bytes());
 
-            let packet = Packet::new(&stream, PktType::CHARACTER, &body);
+            let packet = Packet::new(PktType::CHARACTER, &body);
             let chr = PktCharacter::decode(packet);
             assert_eq!(chr.gold, gold, "Failed for gold value: {}", gold);
         }

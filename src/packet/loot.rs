@@ -86,13 +86,10 @@ impl Parser<'_> for PktLoot {
 
 #[cfg(test)]
 mod tests {
-    use crate::test_common;
-
     use super::*;
 
     #[test]
     fn loot_parse_and_serialize() {
-        let stream = test_common::setup();
         let type_byte = PktType::LOOT;
         let original_bytes: &[u8; 33] = &[
             0x05, 0x54, 0x65, 0x73, 0x74, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
@@ -101,7 +98,7 @@ mod tests {
         ];
 
         // Create a packet with known bytes, excluding the type byte
-        let packet = Packet::new(&stream, type_byte, &original_bytes[1..]);
+        let packet = Packet::new(type_byte, &original_bytes[1..]);
 
         // Deserialize the packet into a PktLoot
         let message = PktLoot::decode(packet);
@@ -122,13 +119,12 @@ mod tests {
     /// Parse from trace: loot target "Deku Baba".
     #[test]
     fn loot_parse_trace_deku_baba() {
-        let stream = test_common::setup();
         let mut body: Vec<u8> = Vec::new();
         let mut name = b"Deku Baba".to_vec();
         name.resize(32, 0x00);
         body.extend(&name);
 
-        let packet = Packet::new(&stream, PktType::LOOT, &body);
+        let packet = Packet::new(PktType::LOOT, &body);
         let loot = PktLoot::decode(packet);
 
         assert_eq!(loot.target_name.as_ref(), "Deku Baba");
@@ -145,9 +141,8 @@ mod tests {
     /// Empty target name.
     #[test]
     fn loot_empty_name() {
-        let stream = test_common::setup();
         let body: Vec<u8> = vec![0x00; 32];
-        let packet = Packet::new(&stream, PktType::LOOT, &body);
+        let packet = Packet::new(PktType::LOOT, &body);
         let loot = PktLoot::decode(packet);
 
         assert_eq!(loot.target_name.as_ref(), "");
@@ -156,10 +151,9 @@ mod tests {
     /// Max-length target name (32 bytes).
     #[test]
     fn loot_max_length_name() {
-        let stream = test_common::setup();
         let long_name = "M".repeat(32);
         let body: Vec<u8> = long_name.as_bytes().to_vec();
-        let packet = Packet::new(&stream, PktType::LOOT, &body);
+        let packet = Packet::new(PktType::LOOT, &body);
         let loot = PktLoot::decode(packet);
 
         assert_eq!(loot.target_name.as_ref(), &long_name);
@@ -168,7 +162,6 @@ mod tests {
     /// Roundtrip.
     #[test]
     fn loot_roundtrip() {
-        let stream = test_common::setup();
         let original = PktLoot::loot("DragonBoss");
 
         let mut buffer: Vec<u8> = Vec::new();
@@ -176,7 +169,7 @@ mod tests {
 
         assert_eq!(buffer.len(), 33); // type(1) + name(32)
 
-        let packet = Packet::new(&stream, PktType::LOOT, &buffer[1..]);
+        let packet = Packet::new(PktType::LOOT, &buffer[1..]);
         let deserialized = PktLoot::decode(packet);
         assert_eq!(deserialized.target_name.as_ref(), "DragonBoss");
     }
@@ -184,10 +177,9 @@ mod tests {
     /// Non-UTF8 name.
     #[test]
     fn loot_non_utf8_name() {
-        let stream = test_common::setup();
         let mut body = vec![0xFF, 0xFE, 0xFD];
         body.resize(32, 0x00);
-        let packet = Packet::new(&stream, PktType::LOOT, &body);
+        let packet = Packet::new(PktType::LOOT, &body);
         let loot = PktLoot::decode(packet);
 
         assert!(loot.target_name.contains('\u{FFFD}'));
@@ -197,9 +189,8 @@ mod tests {
     #[test]
     #[should_panic]
     fn loot_body_too_short_panics() {
-        let stream = test_common::setup();
         let body: &[u8] = &[0x41, 0x42]; // Only 2 bytes, need 32
-        let packet = Packet::new(&stream, PktType::LOOT, body);
+        let packet = Packet::new(PktType::LOOT, body);
         let _ = PktLoot::decode(packet);
     }
 
@@ -207,18 +198,16 @@ mod tests {
     #[test]
     #[should_panic]
     fn loot_empty_body_panics() {
-        let stream = test_common::setup();
         let body: &[u8] = &[];
-        let packet = Packet::new(&stream, PktType::LOOT, body);
+        let packet = Packet::new(PktType::LOOT, body);
         let _ = PktLoot::decode(packet);
     }
 
     /// All 0xFF body.
     #[test]
     fn loot_all_ones_body() {
-        let stream = test_common::setup();
         let body: Vec<u8> = vec![0xFF; 32];
-        let packet = Packet::new(&stream, PktType::LOOT, &body);
+        let packet = Packet::new(PktType::LOOT, &body);
         let loot = PktLoot::decode(packet);
 
         assert!(!loot.target_name.is_empty());

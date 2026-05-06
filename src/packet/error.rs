@@ -104,13 +104,10 @@ impl Parser<'_> for PktError {
 
 #[cfg(test)]
 mod tests {
-    use crate::test_common;
-
     use super::*;
 
     #[test]
     fn error_parse_and_serialize() {
-        let stream = test_common::setup();
         let type_byte = PktType::ERROR;
         let original_bytes: &[u8; 17] = &[
             0x07, 0x04, 0x0d, 0x00, 0x49, 0x6e, 0x76, 0x61, 0x6c, 0x69, 0x64, 0x20, 0x73, 0x74,
@@ -118,7 +115,7 @@ mod tests {
         ];
 
         // Create a packet with known bytes, excluding the type byte
-        let packet = Packet::new(&stream, type_byte, &original_bytes[1..]);
+        let packet = Packet::new(type_byte, &original_bytes[1..]);
 
         // Deserialize the packet into a PktError
         let message = PktError::decode(packet);
@@ -151,7 +148,6 @@ mod tests {
     /// Test each LurkError variant roundtrip.
     #[test]
     fn error_all_error_codes() {
-        let stream = test_common::setup();
         let errors = [
             LurkError::OTHER,
             LurkError::BADROOM,
@@ -171,7 +167,7 @@ mod tests {
 
             assert_eq!(buffer[1], i as u8); // Error code is sequential from 0
 
-            let packet = Packet::new(&stream, PktType::ERROR, &buffer[1..]);
+            let packet = Packet::new(PktType::ERROR, &buffer[1..]);
             let deserialized = PktError::decode(packet);
             assert_eq!(deserialized.error, *lurk_err);
         }
@@ -180,13 +176,12 @@ mod tests {
     /// Empty error message.
     #[test]
     fn error_empty_message() {
-        let stream = test_common::setup();
         let err = PktError::new(LurkError::OTHER, "");
 
         let mut buffer: Vec<u8> = Vec::new();
         err.write_to(&mut buffer).expect("Encoding failed");
 
-        let packet = Packet::new(&stream, PktType::ERROR, &buffer[1..]);
+        let packet = Packet::new(PktType::ERROR, &buffer[1..]);
         let deserialized = PktError::decode(packet);
         assert_eq!(deserialized.message_len, 0);
         assert_eq!(deserialized.message.as_ref(), "");
@@ -195,14 +190,13 @@ mod tests {
     /// Long error message.
     #[test]
     fn error_long_message() {
-        let stream = test_common::setup();
         let long_msg = "E".repeat(5000);
         let err = PktError::new(LurkError::OTHER, &long_msg);
 
         let mut buffer: Vec<u8> = Vec::new();
         err.write_to(&mut buffer).expect("Encoding failed");
 
-        let packet = Packet::new(&stream, PktType::ERROR, &buffer[1..]);
+        let packet = Packet::new(PktType::ERROR, &buffer[1..]);
         let deserialized = PktError::decode(packet);
         assert_eq!(deserialized.message.len(), 5000);
     }
@@ -210,13 +204,12 @@ mod tests {
     /// Unknown error code (>8) should map to OTHER.
     #[test]
     fn error_unknown_error_code() {
-        let stream = test_common::setup();
         let mut body: Vec<u8> = Vec::new();
         body.push(0xFF); // Unknown error code
         body.extend(4u16.to_le_bytes());
         body.extend(b"test");
 
-        let packet = Packet::new(&stream, PktType::ERROR, &body);
+        let packet = Packet::new(PktType::ERROR, &body);
         let err = PktError::decode(packet);
         assert_eq!(err.error, LurkError::OTHER);
     }
@@ -225,9 +218,8 @@ mod tests {
     #[test]
     #[should_panic]
     fn error_body_too_short_panics() {
-        let stream = test_common::setup();
         let body: &[u8] = &[0x00]; // Need at least 3
-        let packet = Packet::new(&stream, PktType::ERROR, body);
+        let packet = Packet::new(PktType::ERROR, body);
         let _ = PktError::decode(packet);
     }
 
@@ -235,18 +227,16 @@ mod tests {
     #[test]
     #[should_panic]
     fn error_empty_body_panics() {
-        let stream = test_common::setup();
         let body: &[u8] = &[];
-        let packet = Packet::new(&stream, PktType::ERROR, body);
+        let packet = Packet::new(PktType::ERROR, body);
         let _ = PktError::decode(packet);
     }
 
     /// All zeros body should parse.
     #[test]
     fn error_all_zeros_body() {
-        let stream = test_common::setup();
         let body: &[u8] = &[0x00, 0x00, 0x00];
-        let packet = Packet::new(&stream, PktType::ERROR, body);
+        let packet = Packet::new(PktType::ERROR, body);
         let err = PktError::decode(packet);
 
         assert_eq!(err.error, LurkError::OTHER);
@@ -265,13 +255,12 @@ mod tests {
     /// Non-UTF8 error message.
     #[test]
     fn error_non_utf8_message() {
-        let stream = test_common::setup();
         let mut body: Vec<u8> = Vec::new();
         body.push(0x00); // OTHER
         body.extend(4u16.to_le_bytes());
         body.extend(&[0xFF, 0xFE, 0xFD, 0xFC]);
 
-        let packet = Packet::new(&stream, PktType::ERROR, &body);
+        let packet = Packet::new(PktType::ERROR, &body);
         let err = PktError::decode(packet);
         assert!(err.message.contains('\u{FFFD}'));
     }

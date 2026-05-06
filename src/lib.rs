@@ -18,8 +18,8 @@
 //!
 //! # Basic Usage
 //!
-//! Server thread uses `Protocol::recv()` to receive packets from connected clients over `TcpStream`
-//! and the packet's corresponding struct is returned for processing.
+//! Use `Protocol::recv()` to receive packets from a connected `TcpStream`.
+//! The returned [`Protocol`] variant contains the deserialized packet data for processing.
 //!
 //! Each connected client can be sent packets using the provided macros, such as `send_accept!`, `send_error!`, and `send_character!`.
 //!
@@ -28,51 +28,28 @@
 //! ```no_run
 //! use lurk_lcsc::Protocol;
 //! use std::net::TcpStream;
-//! use std::sync::{Arc, mpsc, Mutex};
-//!
-//! let (_tx, rx) = mpsc::channel();
-//!
-//! let receiver = Arc::new(Mutex::new(rx));
-//!
-//! std::thread::spawn(move || {
-//!     loop {
-//!         let packet = receiver.lock().unwrap().recv().unwrap();
-//!
-//!         match packet {
-//!             Protocol::Start(author, content) => {
-//!                 // Handle start packet
-//!             },
-//!             _ => {
-//!                // Handle other packet types
-//!             },
-//!        }
-//!    }
-//! });
-//! ```
-//!
-//! ### Client Example
-//!
-//! ```no_run
-//! use lurk_lcsc::Protocol;
-//! use std::net::TcpStream;
-//! use std::sync::{Arc, mpsc};
-//!
-//! let (tx, _rx) = mpsc::channel();
+//! use std::sync::Arc;
 //!
 //! let stream = Arc::new(TcpStream::connect("127.0.0.1:8080").unwrap());
-//! let sender = Arc::new(tx);
 //!
-//! std::thread::spawn(move || {
-//!     loop {
-//!         match Protocol::recv(&stream) {
-//!             Ok(packet) => {
-//!                 // Send the received packet to the main thread for processing
-//!                 sender.send(packet).unwrap();
-//!             },
-//!             Err(e) => eprintln!("Error receiving packet: {}", e),
-//!         }
+//! loop {
+//!     let packet = match Protocol::recv(&stream) {
+//!         Ok(pkt) => pkt,
+//!         Err(e) => {
+//!             eprintln!("Error receiving packet: {}", e);
+//!             break;
+//!         },
+//!     };
+//!
+//!     match packet {
+//!         Protocol::Start(start) => {
+//!             // Handle start packet
+//!         },
+//!         _ => {
+//!            // Handle other packet types
+//!         },
 //!     }
-//! });
+//! }
 //! ```
 
 /////////////////////////////////////////////////////////////////////////////////////////////////
@@ -181,11 +158,6 @@ pub mod protocol;
 
 #[cfg(feature = "tracing")]
 pub use pcap::PCap;
-
-/// Testing utilities and common setup for tests.
-#[doc(hidden)]
-#[allow(dead_code)] // Suppress unused warning as this module is used in multiple test modules.
-pub(crate) mod test_common;
 
 /// Serialize a packet and write it directly to a [`TcpStream`].
 pub fn send_to<'a>(

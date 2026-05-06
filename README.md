@@ -8,7 +8,8 @@ This crate implements the [Lurk Protocol](https://github.com/The24Kings/LurkProt
 ## Features
 
 - Provides core data structures for Lurk messages (character, room, etc.)
-- Handles parsing and serialization of Lurk protocol messages from TcpStream
+- Handles parsing and serialization of Lurk protocol messages
+- Pure wire-format crate — translates raw Lurk packets into manageable Rust structs
 - Ready to be used in both **client** and **server** implementations
 
 ### Optional Features

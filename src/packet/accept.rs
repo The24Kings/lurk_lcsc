@@ -82,18 +82,15 @@ impl Parser<'_> for PktAccept {
 
 #[cfg(test)]
 mod tests {
-    use crate::test_common;
-
     use super::*;
 
     #[test]
     fn accept_parse_and_serialize() {
-        let stream = test_common::setup();
         let type_byte = PktType::ACCEPT;
         let original_bytes: &[u8; 2] = &[0x08, 0x0a];
 
         // Create a packet with known bytes, excluding the type byte
-        let packet = Packet::new(&stream, type_byte, &original_bytes[1..]);
+        let packet = Packet::new(type_byte, &original_bytes[1..]);
 
         // Deserialize the packet into a PktAccept
         let message = PktAccept::decode(packet);
@@ -114,9 +111,8 @@ mod tests {
     /// Parse from trace: ACCEPT for CHARACTER type (0x0a = 10).
     #[test]
     fn accept_parse_trace_character() {
-        let stream = test_common::setup();
         let body: &[u8] = &[0x0a]; // CHARACTER = 10
-        let packet = Packet::new(&stream, PktType::ACCEPT, body);
+        let packet = Packet::new(PktType::ACCEPT, body);
         let acc = PktAccept::decode(packet);
 
         assert_eq!(acc.accept_type, 10);
@@ -126,7 +122,6 @@ mod tests {
     /// Accept for each known packet type.
     #[test]
     fn accept_all_packet_types() {
-        let stream = test_common::setup();
         let types = [
             PktType::MESSAGE,
             PktType::CHANGEROOM,
@@ -153,7 +148,7 @@ mod tests {
             let mut buffer: Vec<u8> = Vec::new();
             acc.write_to(&mut buffer).expect("Encoding failed");
 
-            let packet = Packet::new(&stream, PktType::ACCEPT, &buffer[1..]);
+            let packet = Packet::new(PktType::ACCEPT, &buffer[1..]);
             let deserialized = PktAccept::decode(packet);
             assert_eq!(deserialized.accept_type, u8::from(pkt_type));
         }
@@ -162,9 +157,8 @@ mod tests {
     /// Accept with max u8 value.
     #[test]
     fn accept_max_value() {
-        let stream = test_common::setup();
         let body: &[u8] = &[0xFF];
-        let packet = Packet::new(&stream, PktType::ACCEPT, body);
+        let packet = Packet::new(PktType::ACCEPT, body);
         let acc = PktAccept::decode(packet);
 
         assert_eq!(acc.accept_type, 255);
@@ -173,9 +167,8 @@ mod tests {
     /// Accept with zero value.
     #[test]
     fn accept_zero_value() {
-        let stream = test_common::setup();
         let body: &[u8] = &[0x00];
-        let packet = Packet::new(&stream, PktType::ACCEPT, body);
+        let packet = Packet::new(PktType::ACCEPT, body);
         let acc = PktAccept::decode(packet);
 
         assert_eq!(acc.accept_type, 0);
@@ -184,7 +177,6 @@ mod tests {
     /// Roundtrip via PktAccept::new().
     #[test]
     fn accept_roundtrip() {
-        let stream = test_common::setup();
         let original = PktAccept::new(PktType::MESSAGE);
 
         let mut buffer: Vec<u8> = Vec::new();
@@ -194,7 +186,7 @@ mod tests {
         assert_eq!(buffer[0], u8::from(PktType::ACCEPT));
         assert_eq!(buffer[1], u8::from(PktType::MESSAGE));
 
-        let packet = Packet::new(&stream, PktType::ACCEPT, &buffer[1..]);
+        let packet = Packet::new(PktType::ACCEPT, &buffer[1..]);
         let deserialized = PktAccept::decode(packet);
         assert_eq!(deserialized.accept_type, u8::from(PktType::MESSAGE));
     }
@@ -203,18 +195,16 @@ mod tests {
     #[test]
     #[should_panic]
     fn accept_empty_body_panics() {
-        let stream = test_common::setup();
         let body: &[u8] = &[];
-        let packet = Packet::new(&stream, PktType::ACCEPT, body);
+        let packet = Packet::new(PktType::ACCEPT, body);
         let _ = PktAccept::decode(packet);
     }
 
     /// Extra trailing bytes should be ignored.
     #[test]
     fn accept_extra_trailing_bytes() {
-        let stream = test_common::setup();
         let body: &[u8] = &[0x0a, 0xFF, 0xFF, 0xFF];
-        let packet = Packet::new(&stream, PktType::ACCEPT, body);
+        let packet = Packet::new(PktType::ACCEPT, body);
         let acc = PktAccept::decode(packet);
 
         assert_eq!(acc.accept_type, 10);

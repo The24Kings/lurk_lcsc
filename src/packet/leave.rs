@@ -71,18 +71,15 @@ impl Parser<'_> for PktLeave {
 
 #[cfg(test)]
 mod tests {
-    use crate::test_common;
-
     use super::*;
 
     #[test]
     fn leave_parse_and_serialize() {
-        let stream = test_common::setup();
         let type_byte = PktType::LEAVE;
         let original_bytes: &[u8; 1] = &[0x0c];
 
         // Create a packet with known bytes, excluding the type byte
-        let packet = Packet::new(&stream, type_byte, &[]);
+        let packet = Packet::new(type_byte, &[]);
 
         // Deserialize the packet into a PktLeave
         let message = PktLeave::decode(packet);
@@ -119,13 +116,12 @@ mod tests {
     /// Roundtrip: serialize then deserialize.
     #[test]
     fn leave_roundtrip() {
-        let stream = test_common::setup();
         let original = PktLeave::default();
 
         let mut buffer: Vec<u8> = Vec::new();
         original.write_to(&mut buffer).expect("Encoding failed");
 
-        let packet = Packet::new(&stream, PktType::LEAVE, &[]);
+        let packet = Packet::new(PktType::LEAVE, &[]);
         let deserialized = PktLeave::decode(packet);
         assert_eq!(deserialized.packet_type, PktType::LEAVE);
     }
@@ -133,9 +129,8 @@ mod tests {
     /// Deserialize with extra body bytes should still work.
     #[test]
     fn leave_extra_body_bytes() {
-        let stream = test_common::setup();
         let body: &[u8] = &[0xFF, 0xFF];
-        let packet = Packet::new(&stream, PktType::LEAVE, body);
+        let packet = Packet::new(PktType::LEAVE, body);
         let leave = PktLeave::decode(packet);
         assert_eq!(leave.packet_type, PktType::LEAVE);
     }
@@ -152,9 +147,8 @@ mod tests {
     /// Decode must use the packet_type from the Packet, not Default.
     #[test]
     fn leave_decode_uses_packet_type() {
-        let stream = test_common::setup();
         // Pass a non-LEAVE type to verify decode reads from the packet
-        let packet = Packet::new(&stream, PktType::DEFAULT, &[]);
+        let packet = Packet::new(PktType::DEFAULT, &[]);
         let leave = PktLeave::decode(packet);
         assert_eq!(leave.packet_type, PktType::DEFAULT);
     }

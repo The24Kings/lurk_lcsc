@@ -76,17 +76,14 @@ impl Parser<'_> for PktStart {
 
 #[cfg(test)]
 mod tests {
-    use crate::test_common;
-
     use super::*;
 
     #[test]
     fn start_parse_and_serialize() {
-        let stream = test_common::setup();
         let type_byte = PktType::START;
         let original_bytes: &[u8; 1] = &[0x06];
         // Create a packet with known bytes, excluding the type byte
-        let packet = Packet::new(&stream, type_byte, &original_bytes[1..]);
+        let packet = Packet::new(type_byte, &original_bytes[1..]);
 
         // Deserialize the packet into a PktStart
         let message = PktStart::decode(packet);
@@ -123,13 +120,12 @@ mod tests {
     /// Roundtrip: serialize then deserialize.
     #[test]
     fn start_roundtrip() {
-        let stream = test_common::setup();
         let original = PktStart::default();
 
         let mut buffer: Vec<u8> = Vec::new();
         original.write_to(&mut buffer).expect("Encoding failed");
 
-        let packet = Packet::new(&stream, PktType::START, &[]);
+        let packet = Packet::new(PktType::START, &[]);
         let deserialized = PktStart::decode(packet);
         assert_eq!(deserialized.packet_type, PktType::START);
     }
@@ -137,9 +133,8 @@ mod tests {
     /// Deserialize with extra body bytes should still work.
     #[test]
     fn start_extra_body_bytes() {
-        let stream = test_common::setup();
         let body: &[u8] = &[0xFF, 0xFF];
-        let packet = Packet::new(&stream, PktType::START, body);
+        let packet = Packet::new(PktType::START, body);
         let start = PktStart::decode(packet);
         assert_eq!(start.packet_type, PktType::START);
     }
@@ -156,9 +151,8 @@ mod tests {
     /// Decode must use the packet_type from the Packet, not Default.
     #[test]
     fn start_decode_uses_packet_type() {
-        let stream = test_common::setup();
         // Pass a non-START type to verify decode reads from the packet
-        let packet = Packet::new(&stream, PktType::DEFAULT, &[]);
+        let packet = Packet::new(PktType::DEFAULT, &[]);
         let start = PktStart::decode(packet);
         assert_eq!(start.packet_type, PktType::DEFAULT);
     }
