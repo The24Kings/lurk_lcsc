@@ -105,13 +105,10 @@ impl Parser<'_> for PktRoom {
 
 #[cfg(test)]
 mod tests {
-    use crate::test_common;
-
     use super::*;
 
     #[test]
     fn room_parse_and_serialize() {
-        let stream = test_common::setup();
         let type_byte = PktType::ROOM;
         let original_bytes: &[u8; 69] = &[
             0x09, 0x00, 0x00, 0x54, 0x65, 0x73, 0x74, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
@@ -122,7 +119,7 @@ mod tests {
         ];
 
         // Create a packet with known bytes, excluding the type byte
-        let packet = Packet::new(&stream, type_byte, &original_bytes[1..]);
+        let packet = Packet::new(type_byte, &original_bytes[1..]);
 
         // Deserialize the packet into a PktRoom
         let message = PktRoom::decode(packet);
@@ -149,7 +146,6 @@ mod tests {
     /// Parse from trace: room 0, "Outside the Great Deku Tree".
     #[test]
     fn room_parse_trace_deku_tree() {
-        let stream = test_common::setup();
         let room_name = "Outside the Great Deku Tree";
         let desc = "The dense forest clears just enough to reveal a towering presence.";
         let mut body: Vec<u8> = Vec::new();
@@ -160,7 +156,7 @@ mod tests {
         body.extend((desc.len() as u16).to_le_bytes());
         body.extend(desc.as_bytes());
 
-        let packet = Packet::new(&stream, PktType::ROOM, &body);
+        let packet = Packet::new(PktType::ROOM, &body);
         let room = PktRoom::decode(packet);
 
         assert_eq!(room.room_number, 0);
@@ -171,7 +167,6 @@ mod tests {
     /// Empty description.
     #[test]
     fn room_empty_description() {
-        let stream = test_common::setup();
         let mut body: Vec<u8> = Vec::new();
         body.extend(5u16.to_le_bytes());
         let mut name = b"Empty".to_vec();
@@ -179,7 +174,7 @@ mod tests {
         body.extend(&name);
         body.extend(0u16.to_le_bytes());
 
-        let packet = Packet::new(&stream, PktType::ROOM, &body);
+        let packet = Packet::new(PktType::ROOM, &body);
         let room = PktRoom::decode(packet);
 
         assert_eq!(room.room_number, 5);
@@ -191,7 +186,6 @@ mod tests {
     /// Max room number.
     #[test]
     fn room_max_room_number() {
-        let stream = test_common::setup();
         let mut body: Vec<u8> = Vec::new();
         body.extend(u16::MAX.to_le_bytes());
         let mut name = b"MaxRoom".to_vec();
@@ -199,7 +193,7 @@ mod tests {
         body.extend(&name);
         body.extend(0u16.to_le_bytes());
 
-        let packet = Packet::new(&stream, PktType::ROOM, &body);
+        let packet = Packet::new(PktType::ROOM, &body);
         let room = PktRoom::decode(packet);
 
         assert_eq!(room.room_number, u16::MAX);
@@ -208,14 +202,13 @@ mod tests {
     /// Max-length room name (32 bytes).
     #[test]
     fn room_max_length_name() {
-        let stream = test_common::setup();
         let long_name = "A".repeat(32);
         let mut body: Vec<u8> = Vec::new();
         body.extend(0u16.to_le_bytes());
         body.extend(long_name.as_bytes());
         body.extend(0u16.to_le_bytes());
 
-        let packet = Packet::new(&stream, PktType::ROOM, &body);
+        let packet = Packet::new(PktType::ROOM, &body);
         let room = PktRoom::decode(packet);
 
         assert_eq!(room.room_name.as_ref(), &long_name);
@@ -224,7 +217,6 @@ mod tests {
     /// Roundtrip: construct, serialize, deserialize.
     #[test]
     fn room_roundtrip() {
-        let stream = test_common::setup();
         let original = PktRoom {
             packet_type: PktType::ROOM,
             room_number: 42,
@@ -236,7 +228,7 @@ mod tests {
         let mut buffer: Vec<u8> = Vec::new();
         original.write_to(&mut buffer).expect("Encoding failed");
 
-        let packet = Packet::new(&stream, PktType::ROOM, &buffer[1..]);
+        let packet = Packet::new(PktType::ROOM, &buffer[1..]);
         let deserialized = PktRoom::decode(packet);
 
         assert_eq!(deserialized.room_number, 42);
@@ -247,7 +239,6 @@ mod tests {
     /// Long description.
     #[test]
     fn room_long_description() {
-        let stream = test_common::setup();
         let desc = "B".repeat(5000);
         let mut body: Vec<u8> = Vec::new();
         body.extend(0u16.to_le_bytes());
@@ -257,7 +248,7 @@ mod tests {
         body.extend((desc.len() as u16).to_le_bytes());
         body.extend(desc.as_bytes());
 
-        let packet = Packet::new(&stream, PktType::ROOM, &body);
+        let packet = Packet::new(PktType::ROOM, &body);
         let room = PktRoom::decode(packet);
 
         assert_eq!(room.description.len(), 5000);
@@ -266,7 +257,6 @@ mod tests {
     /// Non-UTF8 room name and description.
     #[test]
     fn room_non_utf8() {
-        let stream = test_common::setup();
         let mut body: Vec<u8> = Vec::new();
         body.extend(0u16.to_le_bytes());
         let mut name = vec![0xFF, 0xFE, 0xFD];
@@ -275,7 +265,7 @@ mod tests {
         body.extend(3u16.to_le_bytes());
         body.extend(&[0xFC, 0xFB, 0xFA]);
 
-        let packet = Packet::new(&stream, PktType::ROOM, &body);
+        let packet = Packet::new(PktType::ROOM, &body);
         let room = PktRoom::decode(packet);
 
         assert!(room.room_name.contains('\u{FFFD}'));
@@ -286,9 +276,8 @@ mod tests {
     #[test]
     #[should_panic]
     fn room_body_too_short_panics() {
-        let stream = test_common::setup();
         let body: &[u8] = &[0x00, 0x00]; // Need at least 36
-        let packet = Packet::new(&stream, PktType::ROOM, body);
+        let packet = Packet::new(PktType::ROOM, body);
         let _ = PktRoom::decode(packet);
     }
 
@@ -296,18 +285,16 @@ mod tests {
     #[test]
     #[should_panic]
     fn room_empty_body_panics() {
-        let stream = test_common::setup();
         let body: &[u8] = &[];
-        let packet = Packet::new(&stream, PktType::ROOM, body);
+        let packet = Packet::new(PktType::ROOM, body);
         let _ = PktRoom::decode(packet);
     }
 
     /// All zeros body (36 bytes min header).
     #[test]
     fn room_all_zeros_body() {
-        let stream = test_common::setup();
         let body: Vec<u8> = vec![0x00; 36];
-        let packet = Packet::new(&stream, PktType::ROOM, &body);
+        let packet = Packet::new(PktType::ROOM, &body);
         let room = PktRoom::decode(packet);
 
         assert_eq!(room.room_number, 0);

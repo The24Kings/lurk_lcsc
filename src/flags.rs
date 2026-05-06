@@ -45,16 +45,141 @@ impl CharacterFlags {
 
     /// Kill a character, making them unplayable until they rejoin.
     pub fn dead() -> Self {
-        CharacterFlags::BATTLE | CharacterFlags::READY
+        CharacterFlags::BATTLE.union(CharacterFlags::READY)
     }
 
     /// Bring a character back to life, ready to play.
     pub fn alive() -> Self {
-        CharacterFlags::ALIVE | CharacterFlags::BATTLE | CharacterFlags::READY
+        CharacterFlags::ALIVE
+            .union(CharacterFlags::BATTLE)
+            .union(CharacterFlags::READY)
     }
 
     /// Reset a character when first starting or respawning.
     pub fn reset() -> Self {
-        CharacterFlags::ALIVE | CharacterFlags::BATTLE
+        CharacterFlags::ALIVE.union(CharacterFlags::BATTLE)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    // ── is_alive ──────────────────────────────────────────────────────
+    #[test]
+    fn is_alive_true_when_alive_set() {
+        let flags = CharacterFlags::ALIVE;
+        assert!(flags.is_alive());
+    }
+
+    #[test]
+    fn is_alive_false_when_alive_not_set() {
+        let flags = CharacterFlags::empty();
+        assert!(!flags.is_alive());
+    }
+
+    // ── is_battle ─────────────────────────────────────────────────────
+    #[test]
+    fn is_battle_true_when_battle_set() {
+        let flags = CharacterFlags::BATTLE;
+        assert!(flags.is_battle());
+    }
+
+    #[test]
+    fn is_battle_false_when_battle_not_set() {
+        let flags = CharacterFlags::empty();
+        assert!(!flags.is_battle());
+    }
+
+    // ── is_started ────────────────────────────────────────────────────
+    #[test]
+    fn is_started_true_when_started_set() {
+        let flags = CharacterFlags::STARTED;
+        assert!(flags.is_started());
+    }
+
+    #[test]
+    fn is_started_false_when_started_not_set() {
+        let flags = CharacterFlags::empty();
+        assert!(!flags.is_started());
+    }
+
+    // ── is_ready ──────────────────────────────────────────────────────
+    #[test]
+    fn is_ready_true_when_ready_set() {
+        let flags = CharacterFlags::READY;
+        assert!(flags.is_ready());
+    }
+
+    #[test]
+    fn is_ready_false_when_ready_not_set() {
+        let flags = CharacterFlags::empty();
+        assert!(!flags.is_ready());
+    }
+
+    // ── dead() ────────────────────────────────────────────────────────
+    #[test]
+    fn dead_has_battle_flag() {
+        assert!(CharacterFlags::dead().contains(CharacterFlags::BATTLE));
+    }
+
+    #[test]
+    fn dead_has_ready_flag() {
+        assert!(CharacterFlags::dead().contains(CharacterFlags::READY));
+    }
+
+    #[test]
+    fn dead_does_not_have_alive_flag() {
+        assert!(!CharacterFlags::dead().contains(CharacterFlags::ALIVE));
+    }
+
+    #[test]
+    fn dead_exact_bits() {
+        // BATTLE (0b0100_0000) | READY (0b0000_1000) = 0b0100_1000 = 0x48
+        assert_eq!(CharacterFlags::dead().bits(), 0b0100_1000);
+    }
+
+    // ── alive() ───────────────────────────────────────────────────────
+    #[test]
+    fn alive_has_alive_flag() {
+        assert!(CharacterFlags::alive().contains(CharacterFlags::ALIVE));
+    }
+
+    #[test]
+    fn alive_has_battle_flag() {
+        assert!(CharacterFlags::alive().contains(CharacterFlags::BATTLE));
+    }
+
+    #[test]
+    fn alive_has_ready_flag() {
+        assert!(CharacterFlags::alive().contains(CharacterFlags::READY));
+    }
+
+    #[test]
+    fn alive_exact_bits() {
+        // ALIVE (0x80) | BATTLE (0x40) | READY (0x08) = 0xC8
+        assert_eq!(CharacterFlags::alive().bits(), 0b1100_1000);
+    }
+
+    // ── reset() ───────────────────────────────────────────────────────
+    #[test]
+    fn reset_has_alive_flag() {
+        assert!(CharacterFlags::reset().contains(CharacterFlags::ALIVE));
+    }
+
+    #[test]
+    fn reset_has_battle_flag() {
+        assert!(CharacterFlags::reset().contains(CharacterFlags::BATTLE));
+    }
+
+    #[test]
+    fn reset_does_not_have_ready_flag() {
+        assert!(!CharacterFlags::reset().contains(CharacterFlags::READY));
+    }
+
+    #[test]
+    fn reset_exact_bits() {
+        // ALIVE (0x80) | BATTLE (0x40) = 0xC0
+        assert_eq!(CharacterFlags::reset().bits(), 0b1100_0000);
     }
 }

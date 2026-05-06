@@ -82,18 +82,15 @@ impl Parser<'_> for PktFight {
 
 #[cfg(test)]
 mod tests {
-    use crate::test_common;
-
     use super::*;
 
     #[test]
     fn fight_parse_and_serialize() {
-        let stream = test_common::setup();
         let type_byte = PktType::FIGHT;
         let original_bytes: &[u8; 1] = &[0x03];
 
         // Create a packet with known bytes, excluding the type byte
-        let packet = Packet::new(&stream, type_byte, &[]);
+        let packet = Packet::new(type_byte, &[]);
 
         // Deserialize the packet into a PktFight
         let message = PktFight::decode(packet);
@@ -130,13 +127,12 @@ mod tests {
     /// Roundtrip: serialize then deserialize.
     #[test]
     fn fight_roundtrip() {
-        let stream = test_common::setup();
         let original = PktFight::default();
 
         let mut buffer: Vec<u8> = Vec::new();
         original.write_to(&mut buffer).expect("Encoding failed");
 
-        let packet = Packet::new(&stream, PktType::FIGHT, &[]);
+        let packet = Packet::new(PktType::FIGHT, &[]);
         let deserialized = PktFight::decode(packet);
         assert_eq!(deserialized.packet_type, PktType::FIGHT);
     }
@@ -144,9 +140,8 @@ mod tests {
     /// Deserialize with extra body bytes should still work (body is ignored).
     #[test]
     fn fight_extra_body_bytes() {
-        let stream = test_common::setup();
         let body: &[u8] = &[0xFF, 0xFF, 0xFF];
-        let packet = Packet::new(&stream, PktType::FIGHT, body);
+        let packet = Packet::new(PktType::FIGHT, body);
         let fight = PktFight::decode(packet);
         assert_eq!(fight.packet_type, PktType::FIGHT);
     }
@@ -158,6 +153,15 @@ mod tests {
         let json_str = format!("{}", fight);
         let parsed: serde_json::Value = serde_json::from_str(&json_str).expect("Invalid JSON");
         assert_eq!(parsed["packet_type"], "FIGHT");
+    }
+
+    /// Decode must use the packet_type from the Packet, not Default.
+    #[test]
+    fn fight_decode_uses_packet_type() {
+        // Pass a non-FIGHT type to verify decode reads from the packet
+        let packet = Packet::new(PktType::DEFAULT, &[]);
+        let fight = PktFight::decode(packet);
+        assert_eq!(fight.packet_type, PktType::DEFAULT);
     }
 }
 ////////////////////////////////////////////////////////////////////////////////

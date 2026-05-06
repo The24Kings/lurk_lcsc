@@ -112,9 +112,8 @@ pub trait Parser<'a>: Sized + 'a {
     /// ```no_run
     /// use lurk_lcsc::{Protocol, PktType, PktMessage, Packet, Parser};
     /// use std::io::{Read, Error, ErrorKind};
-    /// use std::sync::{Arc, mpsc};
+    /// use std::sync::Arc;
     /// use std::net::TcpStream;
-    ///
     ///
     /// let stream = Arc::new(TcpStream::connect("127.0.0.1:8080").unwrap());
     ///
@@ -130,7 +129,6 @@ pub trait Parser<'a>: Sized + 'a {
     ///        let pkt = Packet::read_extended(&stream, packet_type, &mut buffer, (0, 1)).unwrap();
     ///
     ///        Ok(Protocol::Message(
-    ///            stream.clone(),
     ///            PktMessage::decode(pkt),
     ///        ))
     ///    },
@@ -145,8 +143,6 @@ pub trait Parser<'a>: Sized + 'a {
 ///
 /// Do not use this directly; for internal use only. Needed for testing.
 pub struct Packet<'a> {
-    /// Reference to the TCP stream associated with this packet.
-    pub stream: &'a Arc<TcpStream>,
     /// The type of the packet message.
     pub packet_type: PktType,
     /// The body of the packet containing the raw bytes.
@@ -155,9 +151,8 @@ pub struct Packet<'a> {
 
 impl<'a> Packet<'a> {
     /// Creates a new `Packet` from the given TCP stream, packet type, and byte slice.
-    pub(crate) fn new(stream: &'a Arc<TcpStream>, packet_type: PktType, bytes: &'a [u8]) -> Self {
+    pub(crate) fn new(packet_type: PktType, bytes: &'a [u8]) -> Self {
         Packet {
-            stream,
             packet_type,
             body: bytes,
         }
@@ -180,7 +175,7 @@ impl<'a> Packet<'a> {
         trace!("Packet body:\n{}", PCap::build(buffer.to_vec()));
 
         // Create a new packet with the read bytes
-        let packet = Packet::new(stream, packet_type, buffer);
+        let packet = Packet::new(packet_type, buffer);
 
         Ok(packet)
     }
@@ -222,7 +217,7 @@ impl<'a> Packet<'a> {
         // Extend the buffer with the description
         buffer.extend_from_slice(&desc);
 
-        let packet = Packet::new(stream, packet_type, buffer);
+        let packet = Packet::new(packet_type, buffer);
 
         Ok(packet)
     }

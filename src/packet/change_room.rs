@@ -92,18 +92,15 @@ impl Parser<'_> for PktChangeRoom {
 
 #[cfg(test)]
 mod tests {
-    use crate::test_common;
-
     use super::*;
 
     #[test]
     fn changeroom_parse_and_serialize() {
-        let stream = test_common::setup();
         let type_byte = PktType::CHANGEROOM;
         let original_bytes: &[u8; 3] = &[0x02, 0x00, 0x00];
 
         // Create a packet with known bytes, excluding the type byte
-        let packet = Packet::new(&stream, type_byte, &original_bytes[1..]);
+        let packet = Packet::new(type_byte, &original_bytes[1..]);
 
         // Deserialize the packet into a PktChangeRoom
         let message = PktChangeRoom::decode(packet);
@@ -140,9 +137,8 @@ mod tests {
     /// Room number 0.
     #[test]
     fn changeroom_room_zero() {
-        let stream = test_common::setup();
         let body: &[u8] = &[0x00, 0x00];
-        let packet = Packet::new(&stream, PktType::CHANGEROOM, body);
+        let packet = Packet::new(PktType::CHANGEROOM, body);
         let cr = PktChangeRoom::decode(packet);
         assert_eq!(cr.room_number, 0);
     }
@@ -150,9 +146,8 @@ mod tests {
     /// Room number 1.
     #[test]
     fn changeroom_room_one() {
-        let stream = test_common::setup();
         let body: &[u8] = &[0x01, 0x00];
-        let packet = Packet::new(&stream, PktType::CHANGEROOM, body);
+        let packet = Packet::new(PktType::CHANGEROOM, body);
         let cr = PktChangeRoom::decode(packet);
         assert_eq!(cr.room_number, 1);
     }
@@ -160,9 +155,8 @@ mod tests {
     /// Max room number.
     #[test]
     fn changeroom_max_room() {
-        let stream = test_common::setup();
         let body: &[u8] = &[0xFF, 0xFF];
-        let packet = Packet::new(&stream, PktType::CHANGEROOM, body);
+        let packet = Packet::new(PktType::CHANGEROOM, body);
         let cr = PktChangeRoom::decode(packet);
         assert_eq!(cr.room_number, u16::MAX);
     }
@@ -170,13 +164,12 @@ mod tests {
     /// Boundary room values roundtrip.
     #[test]
     fn changeroom_boundary_values() {
-        let stream = test_common::setup();
         for &room in &[0u16, 1, 255, 256, 1000, u16::MAX - 1, u16::MAX] {
             let cr = PktChangeRoom::from(room);
             let mut buffer: Vec<u8> = Vec::new();
             cr.write_to(&mut buffer).expect("Encoding failed");
 
-            let packet = Packet::new(&stream, PktType::CHANGEROOM, &buffer[1..]);
+            let packet = Packet::new(PktType::CHANGEROOM, &buffer[1..]);
             let deserialized = PktChangeRoom::decode(packet);
             assert_eq!(deserialized.room_number, room, "Failed for room: {}", room);
         }
@@ -195,9 +188,8 @@ mod tests {
     #[test]
     #[should_panic]
     fn changeroom_body_too_short_panics() {
-        let stream = test_common::setup();
         let body: &[u8] = &[0x00]; // Need 2 bytes
-        let packet = Packet::new(&stream, PktType::CHANGEROOM, body);
+        let packet = Packet::new(PktType::CHANGEROOM, body);
         let _ = PktChangeRoom::decode(packet);
     }
 
@@ -205,18 +197,16 @@ mod tests {
     #[test]
     #[should_panic]
     fn changeroom_empty_body_panics() {
-        let stream = test_common::setup();
         let body: &[u8] = &[];
-        let packet = Packet::new(&stream, PktType::CHANGEROOM, body);
+        let packet = Packet::new(PktType::CHANGEROOM, body);
         let _ = PktChangeRoom::decode(packet);
     }
 
     /// Extra trailing bytes should be ignored.
     #[test]
     fn changeroom_extra_trailing_bytes() {
-        let stream = test_common::setup();
         let body: &[u8] = &[0x05, 0x00, 0xFF, 0xFF];
-        let packet = Packet::new(&stream, PktType::CHANGEROOM, body);
+        let packet = Packet::new(PktType::CHANGEROOM, body);
         let cr = PktChangeRoom::decode(packet);
         assert_eq!(cr.room_number, 5);
     }

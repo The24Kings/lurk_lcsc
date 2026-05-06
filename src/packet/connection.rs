@@ -110,13 +110,10 @@ impl Parser<'_> for PktConnection {
 
 #[cfg(test)]
 mod tests {
-    use crate::test_common;
-
     use super::*;
 
     #[test]
     fn connection_parse_and_serialize() {
-        let stream = test_common::setup();
         let type_byte = PktType::CONNECTION;
         let original_bytes: &[u8; 75] = &[
             0x0d, 0x01, 0x00, 0x54, 0x65, 0x73, 0x74, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
@@ -128,7 +125,7 @@ mod tests {
         ];
 
         // Create a packet with known bytes, excluding the type byte
-        let packet = Packet::new(&stream, type_byte, &original_bytes[1..]);
+        let packet = Packet::new(type_byte, &original_bytes[1..]);
 
         // Deserialize the packet into a PktConnection
         let message = PktConnection::decode(packet);
@@ -155,7 +152,6 @@ mod tests {
     /// Parse from trace: room 1, "F1 - Main Hall".
     #[test]
     fn connection_parse_trace_main_hall() {
-        let stream = test_common::setup();
         let room_name = "F1 - Main Hall";
         let desc = "You cannot see what lies beyond the darkness of the Deku Tree's maw, but his pleas for help must not go unanswered!";
         let mut body: Vec<u8> = Vec::new();
@@ -166,7 +162,7 @@ mod tests {
         body.extend((desc.len() as u16).to_le_bytes());
         body.extend(desc.as_bytes());
 
-        let packet = Packet::new(&stream, PktType::CONNECTION, &body);
+        let packet = Packet::new(PktType::CONNECTION, &body);
         let conn = PktConnection::decode(packet);
 
         assert_eq!(conn.room_number, 1);
@@ -177,7 +173,6 @@ mod tests {
     /// Empty description.
     #[test]
     fn connection_empty_description() {
-        let stream = test_common::setup();
         let mut body: Vec<u8> = Vec::new();
         body.extend(0u16.to_le_bytes());
         let mut name = b"Empty".to_vec();
@@ -185,7 +180,7 @@ mod tests {
         body.extend(&name);
         body.extend(0u16.to_le_bytes());
 
-        let packet = Packet::new(&stream, PktType::CONNECTION, &body);
+        let packet = Packet::new(PktType::CONNECTION, &body);
         let conn = PktConnection::decode(packet);
 
         assert_eq!(conn.description_len, 0);
@@ -195,7 +190,6 @@ mod tests {
     /// Max room number.
     #[test]
     fn connection_max_room_number() {
-        let stream = test_common::setup();
         let mut body: Vec<u8> = Vec::new();
         body.extend(u16::MAX.to_le_bytes());
         let mut name = b"MaxConn".to_vec();
@@ -203,7 +197,7 @@ mod tests {
         body.extend(&name);
         body.extend(0u16.to_le_bytes());
 
-        let packet = Packet::new(&stream, PktType::CONNECTION, &body);
+        let packet = Packet::new(PktType::CONNECTION, &body);
         let conn = PktConnection::decode(packet);
 
         assert_eq!(conn.room_number, u16::MAX);
@@ -212,7 +206,6 @@ mod tests {
     /// Roundtrip.
     #[test]
     fn connection_roundtrip() {
-        let stream = test_common::setup();
         let original = PktConnection {
             packet_type: PktType::CONNECTION,
             room_number: 7,
@@ -224,7 +217,7 @@ mod tests {
         let mut buffer: Vec<u8> = Vec::new();
         original.write_to(&mut buffer).expect("Encoding failed");
 
-        let packet = Packet::new(&stream, PktType::CONNECTION, &buffer[1..]);
+        let packet = Packet::new(PktType::CONNECTION, &buffer[1..]);
         let deserialized = PktConnection::decode(packet);
 
         assert_eq!(deserialized.room_number, 7);
@@ -235,7 +228,6 @@ mod tests {
     /// Long description.
     #[test]
     fn connection_long_description() {
-        let stream = test_common::setup();
         let desc = "C".repeat(5000);
         let mut body: Vec<u8> = Vec::new();
         body.extend(0u16.to_le_bytes());
@@ -245,7 +237,7 @@ mod tests {
         body.extend((desc.len() as u16).to_le_bytes());
         body.extend(desc.as_bytes());
 
-        let packet = Packet::new(&stream, PktType::CONNECTION, &body);
+        let packet = Packet::new(PktType::CONNECTION, &body);
         let conn = PktConnection::decode(packet);
 
         assert_eq!(conn.description.len(), 5000);
@@ -254,7 +246,6 @@ mod tests {
     /// Non-UTF8 data.
     #[test]
     fn connection_non_utf8() {
-        let stream = test_common::setup();
         let mut body: Vec<u8> = Vec::new();
         body.extend(0u16.to_le_bytes());
         let mut name = vec![0xFF, 0xFE, 0xFD];
@@ -263,7 +254,7 @@ mod tests {
         body.extend(2u16.to_le_bytes());
         body.extend(&[0xFC, 0xFB]);
 
-        let packet = Packet::new(&stream, PktType::CONNECTION, &body);
+        let packet = Packet::new(PktType::CONNECTION, &body);
         let conn = PktConnection::decode(packet);
 
         assert!(conn.room_name.contains('\u{FFFD}'));
@@ -274,9 +265,8 @@ mod tests {
     #[test]
     #[should_panic]
     fn connection_body_too_short_panics() {
-        let stream = test_common::setup();
         let body: &[u8] = &[0x00, 0x00, 0x41]; // Need at least 36
-        let packet = Packet::new(&stream, PktType::CONNECTION, body);
+        let packet = Packet::new(PktType::CONNECTION, body);
         let _ = PktConnection::decode(packet);
     }
 
@@ -284,18 +274,16 @@ mod tests {
     #[test]
     #[should_panic]
     fn connection_empty_body_panics() {
-        let stream = test_common::setup();
         let body: &[u8] = &[];
-        let packet = Packet::new(&stream, PktType::CONNECTION, body);
+        let packet = Packet::new(PktType::CONNECTION, body);
         let _ = PktConnection::decode(packet);
     }
 
     /// All zeros body.
     #[test]
     fn connection_all_zeros_body() {
-        let stream = test_common::setup();
         let body: Vec<u8> = vec![0x00; 36];
-        let packet = Packet::new(&stream, PktType::CONNECTION, &body);
+        let packet = Packet::new(PktType::CONNECTION, &body);
         let conn = PktConnection::decode(packet);
 
         assert_eq!(conn.room_number, 0);

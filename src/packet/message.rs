@@ -167,13 +167,10 @@ impl Parser<'_> for PktMessage {
 
 #[cfg(test)]
 mod tests {
-    use crate::test_common;
-
     use super::*;
 
     #[test]
     fn message_parse_and_serialize() {
-        let stream = test_common::setup();
         let type_byte = PktType::MESSAGE;
         let original_bytes: &[u8; 80] = &[
             0x01, 0x0d, 0x00, 0x54, 0x65, 0x73, 0x74, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
@@ -185,7 +182,7 @@ mod tests {
         ];
 
         // Create a packet with known bytes, excluding the type byte
-        let packet = Packet::new(&stream, type_byte, &original_bytes[1..]);
+        let packet = Packet::new(type_byte, &original_bytes[1..]);
 
         // Deserialize the packet into a PktMessage
         let message = PktMessage::decode(packet);
@@ -210,7 +207,6 @@ mod tests {
     /// Parse trace message: Player2 -> Player1 "Sup".
     #[test]
     fn message_parse_trace_player2_to_player1() {
-        let stream = test_common::setup();
         let mut body: Vec<u8> = Vec::new();
         body.extend(3u16.to_le_bytes()); // message_len = 3
         let mut recipient = b"Player1".to_vec();
@@ -221,7 +217,7 @@ mod tests {
         body.extend(&sender);
         body.extend(b"Sup");
 
-        let packet = Packet::new(&stream, PktType::MESSAGE, &body);
+        let packet = Packet::new(PktType::MESSAGE, &body);
         let msg = PktMessage::decode(packet);
 
         assert_eq!(msg.message_len, 3);
@@ -234,7 +230,6 @@ mod tests {
     /// Parse trace message: Server -> Player1 "Player1 has started the game!".
     #[test]
     fn message_parse_trace_server_notification() {
-        let stream = test_common::setup();
         let msg_text = "Player1 has started the game!";
         let mut body: Vec<u8> = Vec::new();
         body.extend((msg_text.len() as u16).to_le_bytes());
@@ -246,7 +241,7 @@ mod tests {
         body.extend(&sender);
         body.extend(msg_text.as_bytes());
 
-        let packet = Packet::new(&stream, PktType::MESSAGE, &body);
+        let packet = Packet::new(PktType::MESSAGE, &body);
         let msg = PktMessage::decode(packet);
 
         assert_eq!(msg.recipient.as_ref(), "Player1");
@@ -281,7 +276,6 @@ mod tests {
     /// Narration flag: serialize with narration=true, verify the 0x00 0x01 marker.
     #[test]
     fn message_narration_roundtrip() {
-        let stream = test_common::setup();
         let msg = PktMessage::narrator("Player1", "A tale of old.");
 
         let mut buffer: Vec<u8> = Vec::new();
@@ -295,7 +289,7 @@ mod tests {
         assert_eq!(buffer[66], 0x01);
 
         // Deserialize and verify
-        let packet = Packet::new(&stream, PktType::MESSAGE, &buffer[1..]);
+        let packet = Packet::new(PktType::MESSAGE, &buffer[1..]);
         let deserialized = PktMessage::decode(packet);
         assert!(deserialized.narration);
         assert_eq!(deserialized.sender.as_ref(), "Narrator");
@@ -304,13 +298,12 @@ mod tests {
     /// Non-narration message should not have the marker.
     #[test]
     fn message_non_narration_roundtrip() {
-        let stream = test_common::setup();
         let msg = PktMessage::server("Player1", "Hello.");
 
         let mut buffer: Vec<u8> = Vec::new();
         msg.write_to(&mut buffer).expect("Encoding failed");
 
-        let packet = Packet::new(&stream, PktType::MESSAGE, &buffer[1..]);
+        let packet = Packet::new(PktType::MESSAGE, &buffer[1..]);
         let deserialized = PktMessage::decode(packet);
         assert!(!deserialized.narration);
         assert_eq!(deserialized.sender.as_ref(), "Server");
@@ -320,13 +313,12 @@ mod tests {
     /// Empty message text.
     #[test]
     fn message_empty_text() {
-        let stream = test_common::setup();
         let msg = PktMessage::server("Player1", "");
 
         let mut buffer: Vec<u8> = Vec::new();
         msg.write_to(&mut buffer).expect("Encoding failed");
 
-        let packet = Packet::new(&stream, PktType::MESSAGE, &buffer[1..]);
+        let packet = Packet::new(PktType::MESSAGE, &buffer[1..]);
         let deserialized = PktMessage::decode(packet);
         assert_eq!(deserialized.message_len, 0);
         assert_eq!(deserialized.message.as_ref(), "");
@@ -335,14 +327,13 @@ mod tests {
     /// Long message text.
     #[test]
     fn message_long_text() {
-        let stream = test_common::setup();
         let long_text = "X".repeat(5000);
         let msg = PktMessage::server("Player1", &long_text);
 
         let mut buffer: Vec<u8> = Vec::new();
         msg.write_to(&mut buffer).expect("Encoding failed");
 
-        let packet = Packet::new(&stream, PktType::MESSAGE, &buffer[1..]);
+        let packet = Packet::new(PktType::MESSAGE, &buffer[1..]);
         let deserialized = PktMessage::decode(packet);
         assert_eq!(deserialized.message_len, 5000);
         assert_eq!(deserialized.message.len(), 5000);
@@ -351,7 +342,6 @@ mod tests {
     /// Max-length recipient name (32 bytes, no padding).
     #[test]
     fn message_max_length_recipient() {
-        let stream = test_common::setup();
         let long_name = "R".repeat(32);
         let msg = PktMessage {
             packet_type: PktType::MESSAGE,
@@ -365,7 +355,7 @@ mod tests {
         let mut buffer: Vec<u8> = Vec::new();
         msg.write_to(&mut buffer).expect("Encoding failed");
 
-        let packet = Packet::new(&stream, PktType::MESSAGE, &buffer[1..]);
+        let packet = Packet::new(PktType::MESSAGE, &buffer[1..]);
         let deserialized = PktMessage::decode(packet);
         assert_eq!(deserialized.recipient.as_ref(), &long_name);
     }
@@ -374,9 +364,8 @@ mod tests {
     #[test]
     #[should_panic]
     fn message_body_too_short_panics() {
-        let stream = test_common::setup();
         let body: &[u8] = &[0x00, 0x00, 0x41]; // Only 3 bytes, need at least 66
-        let packet = Packet::new(&stream, PktType::MESSAGE, body);
+        let packet = Packet::new(PktType::MESSAGE, body);
         let _ = PktMessage::decode(packet);
     }
 
@@ -384,18 +373,16 @@ mod tests {
     #[test]
     #[should_panic]
     fn message_empty_body_panics() {
-        let stream = test_common::setup();
         let body: &[u8] = &[];
-        let packet = Packet::new(&stream, PktType::MESSAGE, body);
+        let packet = Packet::new(PktType::MESSAGE, body);
         let _ = PktMessage::decode(packet);
     }
 
     /// All-zero 66-byte body should parse without panic.
     #[test]
     fn message_all_zeros_body() {
-        let stream = test_common::setup();
         let body: Vec<u8> = vec![0x00; 66];
-        let packet = Packet::new(&stream, PktType::MESSAGE, &body);
+        let packet = Packet::new(PktType::MESSAGE, &body);
         let msg = PktMessage::decode(packet);
 
         assert_eq!(msg.message_len, 0);
@@ -407,9 +394,8 @@ mod tests {
     /// All-0xFF 66-byte body should parse without panic.
     #[test]
     fn message_all_ones_body() {
-        let stream = test_common::setup();
         let body: Vec<u8> = vec![0xFF; 66];
-        let packet = Packet::new(&stream, PktType::MESSAGE, &body);
+        let packet = Packet::new(PktType::MESSAGE, &body);
         let msg = PktMessage::decode(packet);
 
         assert_eq!(msg.message_len, u16::MAX);
@@ -421,7 +407,6 @@ mod tests {
     /// Non-UTF8 bytes in recipient/sender should use lossy conversion.
     #[test]
     fn message_non_utf8_names() {
-        let stream = test_common::setup();
         let mut body: Vec<u8> = Vec::new();
         body.extend(0u16.to_le_bytes()); // message_len
         let mut recipient = vec![0xFF, 0xFE, 0xFD];
@@ -431,7 +416,7 @@ mod tests {
         sender.resize(32, 0x00);
         body.extend(&sender);
 
-        let packet = Packet::new(&stream, PktType::MESSAGE, &body);
+        let packet = Packet::new(PktType::MESSAGE, &body);
         let msg = PktMessage::decode(packet);
 
         assert!(msg.recipient.contains('\u{FFFD}'));

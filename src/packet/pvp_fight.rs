@@ -94,13 +94,10 @@ impl Parser<'_> for PktPVPFight {
 
 #[cfg(test)]
 mod tests {
-    use crate::test_common;
-
     use super::*;
 
     #[test]
     fn pvp_fight_parse_and_serialize() {
-        let stream = test_common::setup();
         let type_byte = PktType::PVPFIGHT;
         let original_bytes: &[u8; 33] = &[
             0x04, 0x54, 0x65, 0x73, 0x74, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
@@ -109,7 +106,7 @@ mod tests {
         ];
 
         // Create a packet with known bytes, excluding the type byte
-        let packet = Packet::new(&stream, type_byte, &original_bytes[1..]);
+        let packet = Packet::new(type_byte, &original_bytes[1..]);
 
         // Deserialize the packet into a PktPVPFight
         let message = PktPVPFight::decode(packet);
@@ -138,9 +135,8 @@ mod tests {
     /// Empty target name.
     #[test]
     fn pvp_fight_empty_name() {
-        let stream = test_common::setup();
         let body: Vec<u8> = vec![0x00; 32];
-        let packet = Packet::new(&stream, PktType::PVPFIGHT, &body);
+        let packet = Packet::new(PktType::PVPFIGHT, &body);
         let pvp = PktPVPFight::decode(packet);
 
         assert_eq!(pvp.target_name.as_ref(), "");
@@ -149,10 +145,9 @@ mod tests {
     /// Max-length target name (32 bytes).
     #[test]
     fn pvp_fight_max_length_name() {
-        let stream = test_common::setup();
         let long_name = "P".repeat(32);
         let body: Vec<u8> = long_name.as_bytes().to_vec();
-        let packet = Packet::new(&stream, PktType::PVPFIGHT, &body);
+        let packet = Packet::new(PktType::PVPFIGHT, &body);
         let pvp = PktPVPFight::decode(packet);
 
         assert_eq!(pvp.target_name.as_ref(), &long_name);
@@ -161,7 +156,6 @@ mod tests {
     /// Roundtrip.
     #[test]
     fn pvp_fight_roundtrip() {
-        let stream = test_common::setup();
         let original = PktPVPFight::fight("Rival");
 
         let mut buffer: Vec<u8> = Vec::new();
@@ -169,7 +163,7 @@ mod tests {
 
         assert_eq!(buffer.len(), 33); // type(1) + name(32)
 
-        let packet = Packet::new(&stream, PktType::PVPFIGHT, &buffer[1..]);
+        let packet = Packet::new(PktType::PVPFIGHT, &buffer[1..]);
         let deserialized = PktPVPFight::decode(packet);
         assert_eq!(deserialized.target_name.as_ref(), "Rival");
     }
@@ -177,10 +171,9 @@ mod tests {
     /// Non-UTF8 name.
     #[test]
     fn pvp_fight_non_utf8_name() {
-        let stream = test_common::setup();
         let mut body = vec![0xFF, 0xFE, 0xFD];
         body.resize(32, 0x00);
-        let packet = Packet::new(&stream, PktType::PVPFIGHT, &body);
+        let packet = Packet::new(PktType::PVPFIGHT, &body);
         let pvp = PktPVPFight::decode(packet);
 
         assert!(pvp.target_name.contains('\u{FFFD}'));
@@ -190,9 +183,8 @@ mod tests {
     #[test]
     #[should_panic]
     fn pvp_fight_body_too_short_panics() {
-        let stream = test_common::setup();
         let body: &[u8] = &[0x41, 0x42]; // Only 2 bytes, need 32
-        let packet = Packet::new(&stream, PktType::PVPFIGHT, body);
+        let packet = Packet::new(PktType::PVPFIGHT, body);
         let _ = PktPVPFight::decode(packet);
     }
 
@@ -200,18 +192,16 @@ mod tests {
     #[test]
     #[should_panic]
     fn pvp_fight_empty_body_panics() {
-        let stream = test_common::setup();
         let body: &[u8] = &[];
-        let packet = Packet::new(&stream, PktType::PVPFIGHT, body);
+        let packet = Packet::new(PktType::PVPFIGHT, body);
         let _ = PktPVPFight::decode(packet);
     }
 
     /// All 0xFF body.
     #[test]
     fn pvp_fight_all_ones_body() {
-        let stream = test_common::setup();
         let body: Vec<u8> = vec![0xFF; 32];
-        let packet = Packet::new(&stream, PktType::PVPFIGHT, &body);
+        let packet = Packet::new(PktType::PVPFIGHT, &body);
         let pvp = PktPVPFight::decode(packet);
 
         assert!(!pvp.target_name.is_empty());
