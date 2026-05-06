@@ -69,7 +69,6 @@ impl PktCharacter {
 ///
 /// let stream = Arc::new(TcpStream::connect("127.0.0.1:8080").unwrap());
 /// let player = PktCharacter {
-///     author: None,
 ///     packet_type: PktType::CHARACTER,
 ///     name: "Test".into(),
 ///     flags: CharacterFlags::reset(),
