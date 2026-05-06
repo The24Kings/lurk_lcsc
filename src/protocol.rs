@@ -351,3 +351,182 @@ impl Protocol {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    use crate::test_common;
+
+    /// Protocol::Display must produce non-empty output for every variant.
+    #[test]
+    fn protocol_display_message() {
+        let stream = test_common::setup();
+        let pkt = PktMessage::server("Recipient", "Hello");
+        let proto = Protocol::Message(stream, pkt);
+        let output = format!("{}", proto);
+        assert!(!output.is_empty(), "Display for Message must be non-empty");
+    }
+
+    #[test]
+    fn protocol_display_changeroom() {
+        let stream = test_common::setup();
+        let pkt = PktChangeRoom::from(1u16);
+        let proto = Protocol::ChangeRoom(stream, pkt);
+        let output = format!("{}", proto);
+        assert!(
+            !output.is_empty(),
+            "Display for ChangeRoom must be non-empty"
+        );
+    }
+
+    #[test]
+    fn protocol_display_fight() {
+        let stream = test_common::setup();
+        let pkt = PktFight::default();
+        let proto = Protocol::Fight(stream, pkt);
+        let output = format!("{}", proto);
+        assert!(!output.is_empty(), "Display for Fight must be non-empty");
+    }
+
+    #[test]
+    fn protocol_display_pvpfight() {
+        let stream = test_common::setup();
+        let pkt = PktPVPFight::fight("Target");
+        let proto = Protocol::PVPFight(stream, pkt);
+        let output = format!("{}", proto);
+        assert!(!output.is_empty(), "Display for PVPFight must be non-empty");
+    }
+
+    #[test]
+    fn protocol_display_loot() {
+        let stream = test_common::setup();
+        let pkt = PktLoot::loot("Monster");
+        let proto = Protocol::Loot(stream, pkt);
+        let output = format!("{}", proto);
+        assert!(!output.is_empty(), "Display for Loot must be non-empty");
+    }
+
+    #[test]
+    fn protocol_display_start() {
+        let stream = test_common::setup();
+        let pkt = PktStart::default();
+        let proto = Protocol::Start(stream, pkt);
+        let output = format!("{}", proto);
+        assert!(!output.is_empty(), "Display for Start must be non-empty");
+    }
+
+    #[test]
+    fn protocol_display_error() {
+        let stream = test_common::setup();
+        let pkt = PktError::new(crate::LurkError::OTHER, "test");
+        let proto = Protocol::Error(stream, pkt);
+        let output = format!("{}", proto);
+        assert!(!output.is_empty(), "Display for Error must be non-empty");
+    }
+
+    #[test]
+    fn protocol_display_accept() {
+        let stream = test_common::setup();
+        let pkt = PktAccept::new(PktType::CHARACTER);
+        let proto = Protocol::Accept(stream, pkt);
+        let output = format!("{}", proto);
+        assert!(!output.is_empty(), "Display for Accept must be non-empty");
+    }
+
+    #[test]
+    fn protocol_display_room() {
+        let stream = test_common::setup();
+        let pkt = PktRoom {
+            packet_type: PktType::ROOM,
+            room_number: 1,
+            room_name: "Test".into(),
+            description_len: 4,
+            description: "desc".into(),
+        };
+        let proto = Protocol::Room(stream, pkt);
+        let output = format!("{}", proto);
+        assert!(!output.is_empty(), "Display for Room must be non-empty");
+    }
+
+    #[test]
+    fn protocol_display_character() {
+        let stream = test_common::setup();
+        let pkt = PktCharacter {
+            packet_type: PktType::CHARACTER,
+            name: "Hero".into(),
+            flags: crate::CharacterFlags::reset(),
+            attack: 10,
+            defense: 10,
+            regen: 5,
+            health: 100,
+            gold: 0,
+            current_room: 0,
+            description_len: 4,
+            description: "desc".into(),
+        };
+        let proto = Protocol::Character(stream, pkt);
+        let output = format!("{}", proto);
+        assert!(
+            !output.is_empty(),
+            "Display for Character must be non-empty"
+        );
+    }
+
+    #[test]
+    fn protocol_display_game() {
+        let stream = test_common::setup();
+        let pkt = PktGame {
+            packet_type: PktType::GAME,
+            initial_points: 100,
+            stat_limit: 65535,
+            description_len: 4,
+            description: "desc".into(),
+        };
+        let proto = Protocol::Game(stream, pkt);
+        let output = format!("{}", proto);
+        assert!(!output.is_empty(), "Display for Game must be non-empty");
+    }
+
+    #[test]
+    fn protocol_display_leave() {
+        let stream = test_common::setup();
+        let pkt = PktLeave::default();
+        let proto = Protocol::Leave(stream, pkt);
+        let output = format!("{}", proto);
+        assert!(!output.is_empty(), "Display for Leave must be non-empty");
+    }
+
+    #[test]
+    fn protocol_display_connection() {
+        let stream = test_common::setup();
+        let pkt = PktConnection {
+            packet_type: PktType::CONNECTION,
+            room_number: 1,
+            room_name: "Test".into(),
+            description_len: 4,
+            description: "desc".into(),
+        };
+        let proto = Protocol::Connection(stream, pkt);
+        let output = format!("{}", proto);
+        assert!(
+            !output.is_empty(),
+            "Display for Connection must be non-empty"
+        );
+    }
+
+    #[test]
+    fn protocol_display_version() {
+        let stream = test_common::setup();
+        let pkt = PktVersion {
+            packet_type: PktType::VERSION,
+            major_rev: 2,
+            minor_rev: 3,
+            extensions_len: 0,
+            extensions: None,
+        };
+        let proto = Protocol::Version(stream, pkt);
+        let output = format!("{}", proto);
+        assert!(!output.is_empty(), "Display for Version must be non-empty");
+    }
+}

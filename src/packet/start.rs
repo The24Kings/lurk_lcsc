@@ -152,5 +152,15 @@ mod tests {
         let parsed: serde_json::Value = serde_json::from_str(&json_str).expect("Invalid JSON");
         assert_eq!(parsed["packet_type"], "START");
     }
+
+    /// Decode must use the packet_type from the Packet, not Default.
+    #[test]
+    fn start_decode_uses_packet_type() {
+        let stream = test_common::setup();
+        // Pass a non-START type to verify decode reads from the packet
+        let packet = Packet::new(&stream, PktType::DEFAULT, &[]);
+        let start = PktStart::decode(packet);
+        assert_eq!(start.packet_type, PktType::DEFAULT);
+    }
 }
 ////////////////////////////////////////////////////////////////////////////////

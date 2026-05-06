@@ -148,5 +148,15 @@ mod tests {
         let parsed: serde_json::Value = serde_json::from_str(&json_str).expect("Invalid JSON");
         assert_eq!(parsed["packet_type"], "LEAVE");
     }
+
+    /// Decode must use the packet_type from the Packet, not Default.
+    #[test]
+    fn leave_decode_uses_packet_type() {
+        let stream = test_common::setup();
+        // Pass a non-LEAVE type to verify decode reads from the packet
+        let packet = Packet::new(&stream, PktType::DEFAULT, &[]);
+        let leave = PktLeave::decode(packet);
+        assert_eq!(leave.packet_type, PktType::DEFAULT);
+    }
 }
 ////////////////////////////////////////////////////////////////////////////////

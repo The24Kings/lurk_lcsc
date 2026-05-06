@@ -1,5 +1,5 @@
 use serde::{Deserialize, Serialize};
-use std::{io::Write, net::TcpStream, sync::Arc};
+use std::{io::Write, sync::Arc};
 
 use crate::Packet;
 use crate::Parser;
@@ -19,9 +19,6 @@ use crate::packet::PktType;
 /// - The client will use this message to set the name, description, attack, defense, regen, and flags when the character is created.
 /// - It can also be used to reprise an abandoned or deceased character.
 pub struct PktCharacter {
-    #[serde(skip)]
-    /// The TCP stream associated with the author of the packet, if available.
-    pub author: Option<Arc<TcpStream>>,
     /// The type of message for the `CHARACTER` packet. Default is 10.
     pub packet_type: PktType,
     /// The name of the character, up to 32 bytes.
@@ -155,7 +152,6 @@ impl Parser<'_> for PktCharacter {
         let description = String::from_utf8_lossy(&packet.body[47..]).into();
 
         Self {
-            author: Some(packet.stream.clone()),
             packet_type: packet.packet_type,
             name: Arc::from(name),
             flags,
@@ -443,7 +439,6 @@ mod tests {
     fn character_roundtrip() {
         let stream = test_common::setup();
         let original = PktCharacter {
-            author: None,
             packet_type: PktType::CHARACTER,
             name: Arc::from("TestHero"),
             flags: CharacterFlags::ALIVE
@@ -546,7 +541,6 @@ mod tests {
     #[test]
     fn character_with_defaults_from() {
         let incoming = PktCharacter {
-            author: None,
             packet_type: PktType::CHARACTER,
             name: Arc::from("Player1"),
             flags: CharacterFlags::ALIVE
@@ -602,7 +596,6 @@ mod tests {
     #[test]
     fn character_display_valid_json() {
         let chr = PktCharacter {
-            author: None,
             packet_type: PktType::CHARACTER,
             name: Arc::from("TestChar"),
             flags: CharacterFlags::ALIVE | CharacterFlags::BATTLE,

@@ -159,5 +159,15 @@ mod tests {
         let parsed: serde_json::Value = serde_json::from_str(&json_str).expect("Invalid JSON");
         assert_eq!(parsed["packet_type"], "FIGHT");
     }
+
+    /// Decode must use the packet_type from the Packet, not Default.
+    #[test]
+    fn fight_decode_uses_packet_type() {
+        let stream = test_common::setup();
+        // Pass a non-FIGHT type to verify decode reads from the packet
+        let packet = Packet::new(&stream, PktType::DEFAULT, &[]);
+        let fight = PktFight::decode(packet);
+        assert_eq!(fight.packet_type, PktType::DEFAULT);
+    }
 }
 ////////////////////////////////////////////////////////////////////////////////
