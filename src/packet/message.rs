@@ -53,6 +53,19 @@ impl PktMessage {
             message: Box::from(message),
         }
     }
+
+    /// Create a new `PktMessage` from a given player to a specific recipient.
+    /// This is used for player to player messaging.
+    pub fn player(sender: &str, recipient: &str, message: &str) -> Self {
+        Self {
+            packet_type: PktType::MESSAGE,
+            message_len: message.len() as u16,
+            recipient: recipient.into(),
+            sender: sender.into(),
+            narration: false,
+            message: message.into(),
+        }
+    }
 }
 
 #[macro_export]
@@ -432,6 +445,36 @@ mod tests {
         assert_eq!(parsed["recipient"], "Player1");
         assert_eq!(parsed["sender"], "Server");
         assert_eq!(parsed["message"], "Hello!");
+    }
+
+    /// PktMessage::player helper constructs correctly.
+    #[test]
+    fn message_player_helper() {
+        let msg = PktMessage::player("Alice", "Bob", "Hi");
+        assert_eq!(msg.packet_type, PktType::MESSAGE);
+        assert_eq!(msg.recipient.as_ref(), "Bob");
+        assert_eq!(msg.sender.as_ref(), "Alice");
+        assert!(!msg.narration);
+        assert_eq!(msg.message.as_ref(), "Hi");
+        assert_eq!(msg.message_len, 2);
+    }
+
+    /// Player message: serialize then deserialize and verify fields.
+    #[test]
+    fn message_player_roundtrip() {
+        let msg = PktMessage::player("Player2", "Player1", "Sup");
+
+        let mut buffer: Vec<u8> = Vec::new();
+        msg.write_to(&mut buffer).expect("Encoding failed");
+
+        let packet = Packet::new(PktType::MESSAGE, &buffer[1..]);
+        let deserialized = PktMessage::decode(packet);
+
+        assert_eq!(deserialized.message_len, 3);
+        assert_eq!(deserialized.recipient.as_ref(), "Player1");
+        assert_eq!(deserialized.sender.as_ref(), "Player2");
+        assert!(!deserialized.narration);
+        assert_eq!(deserialized.message.as_ref(), "Sup");
     }
 }
 ////////////////////////////////////////////////////////////////////////////////

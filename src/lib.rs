@@ -55,7 +55,7 @@
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
 // Lurk types in rustdoc of other crates get linked to here.
-#![doc(html_root_url = "https://docs.rs/lurk_lcsc/2.3.20")]
+#![doc(html_root_url = "https://docs.rs/lurk_lcsc/2.3.21")]
 // Show which crate feature enables conditionally compiled APIs in documentation.
 #![cfg_attr(docsrs, feature(doc_cfg, rustdoc_internals))]
 #![cfg_attr(docsrs, allow(internal_features))]
