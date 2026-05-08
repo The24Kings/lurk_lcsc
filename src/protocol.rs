@@ -40,7 +40,7 @@ pub enum Protocol {
     /// Must be sent __second__ on new connections.
     ///
     /// ```
-    /// use lurk_lcsc::{Protocol, PktGame, PktType};
+    /// use lurk_protocol::{Protocol, PktGame, PktType};
     ///
     /// let protocol = Protocol::Game(
     ///     PktGame {
@@ -61,7 +61,7 @@ pub enum Protocol {
     /// Must be sent __first__ on new connections.
     ///
     /// ```
-    /// use lurk_lcsc::{Protocol, PktVersion, PktType};
+    /// use lurk_protocol::{Protocol, PktVersion, PktType};
     ///
     /// let protocol = Protocol::Version(
     ///     PktVersion {
@@ -80,7 +80,7 @@ impl std::fmt::Display for Protocol {
     /// Formats the `Protocol` enum variant as a human-readable string.
     ///
     /// ```
-    /// use lurk_lcsc::{Protocol, PktMessage};
+    /// use lurk_protocol::{Protocol, PktMessage};
     ///
     /// let pkt_message = PktMessage::server("Recipient", "Hello, server!");
     /// let protocol = Protocol::Message(pkt_message);
@@ -111,7 +111,7 @@ impl Protocol {
     /// Receive one packet from the connected TcpStream
     ///
     /// ```no_run
-    /// use lurk_lcsc::Protocol;
+    /// use lurk_protocol::Protocol;
     /// use std::net::TcpStream;
     /// use std::sync::Arc;
     ///

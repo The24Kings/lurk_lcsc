@@ -29,7 +29,7 @@ pub struct PktVersion {
 /// Send `PktVersion` over `TcpStream` to connected user
 ///
 /// ```no_run
-/// use lurk_lcsc::{Protocol, PktVersion, PktType, send_version};
+/// use lurk_protocol::{Protocol, PktVersion, PktType, send_version};
 /// use std::sync::Arc;
 /// use std::net::TcpStream;
 ///

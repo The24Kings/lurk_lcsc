@@ -72,7 +72,7 @@ impl PktMessage {
 /// Send `PktMessage` over `TcpStream` to connected user
 ///
 /// ```no_run
-/// use lurk_lcsc::{Protocol, PktMessage, PktType, send_message};
+/// use lurk_protocol::{Protocol, PktMessage, PktType, send_message};
 /// use std::sync::Arc;
 /// use std::net::TcpStream;
 ///

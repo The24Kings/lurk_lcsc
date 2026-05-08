@@ -41,7 +41,7 @@ impl From<PktType> for u8 {
     /// Converts a `PktType` enum variant into its corresponding `u8` value.
     ///
     /// ```rust
-    /// use lurk_lcsc::pkt_type::PktType;
+    /// use lurk_protocol::pkt_type::PktType;
     ///
     /// let pkt = PktType::MESSAGE;
     /// let pkt_u8: u8 = pkt.into();
@@ -59,7 +59,7 @@ impl From<u8> for PktType {
     /// Converts a `u8` value into its corresponding `PktType` enum variant.
     ///
     /// ```rust
-    /// use lurk_lcsc::pkt_type::PktType;
+    /// use lurk_protocol::pkt_type::PktType;
     ///
     /// let pkt_type = PktType::from(3u8);
     /// assert_eq!(pkt_type, PktType::FIGHT);
@@ -89,7 +89,7 @@ impl From<&[u8; 1]> for PktType {
     /// Converts a byte slice into its corresponding `PktType` enum variant.
     ///
     /// ```rust
-    /// use lurk_lcsc::pkt_type::PktType;
+    /// use lurk_protocol::pkt_type::PktType;
     ///
     /// let bytes = [3u8; 1];
     /// let pkt_type = PktType::from(&bytes);
@@ -120,7 +120,7 @@ impl std::fmt::Display for PktType {
     /// Formats the `PktType` enum variant as a human-readable string.
     /// # Example
     /// ```rust
-    /// use lurk_lcsc::pkt_type::PktType;
+    /// use lurk_protocol::pkt_type::PktType;
     ///
     /// let pkt = PktType::FIGHT;
     /// assert_eq!(format!("{}", pkt), "Fight");

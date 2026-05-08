@@ -46,7 +46,7 @@ pub mod version;
 /// Trait for serializing and deserializing packets.
 ///
 /// ```no_run
-/// use lurk_lcsc::{Packet, Parser, PktType};
+/// use lurk_protocol::{Packet, Parser, PktType};
 /// use std::io::{Error, Write};
 /// use serde::{Deserialize, Serialize};
 ///
@@ -90,8 +90,8 @@ pub trait Parser<'a>: Sized + 'a {
     /// Serializes the packet and writes it to the provided writer.
     ///
     /// ```no_run
-    /// use lurk_lcsc::{Parser, PktType};
-    /// use lurk_lcsc::PktVersion;
+    /// use lurk_protocol::{Parser, PktType};
+    /// use lurk_protocol::PktVersion;
     /// use std::io::Write;
     ///
     /// let packet = PktVersion {
@@ -110,7 +110,7 @@ pub trait Parser<'a>: Sized + 'a {
     /// Deserializes a Packet into the implementing type.
     ///
     /// ```no_run
-    /// use lurk_lcsc::{Protocol, PktType, PktMessage, Packet, Parser};
+    /// use lurk_protocol::{Protocol, PktType, PktMessage, Packet, Parser};
     /// use std::io::{Read, Error, ErrorKind};
     /// use std::sync::Arc;
     /// use std::net::TcpStream;

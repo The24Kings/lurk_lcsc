@@ -32,7 +32,7 @@ pub struct PktConnection {
 /// Send `PktConnection` over `TcpStream` to connected user
 ///
 /// ```no_run
-/// use lurk_lcsc::{Protocol, PktConnection, PktType, send_connection};
+/// use lurk_protocol::{Protocol, PktConnection, PktType, send_connection};
 /// use std::sync::Arc;
 /// use std::net::TcpStream;
 ///

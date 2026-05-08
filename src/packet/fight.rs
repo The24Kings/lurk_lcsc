@@ -34,7 +34,7 @@ impl Default for PktFight {
 /// Send `PktFight` over `TcpStream` to connected user
 ///
 /// ```no_run
-/// use lurk_lcsc::{Protocol, PktFight, LurkError, send_fight};
+/// use lurk_protocol::{Protocol, PktFight, LurkError, send_fight};
 /// use std::sync::Arc;
 /// use std::net::TcpStream;
 ///
