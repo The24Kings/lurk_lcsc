@@ -29,7 +29,7 @@ impl PktAccept {
 /// Send `PktAccept` over `TcpStream` to connected user
 ///
 /// ```no_run
-/// use lurk_lcsc::{Protocol, PktType, send_accept};
+/// use lurk_protocol::{Protocol, PktType, send_accept};
 /// use std::sync::Arc;
 /// use std::net::TcpStream;
 ///

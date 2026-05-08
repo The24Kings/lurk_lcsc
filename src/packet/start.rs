@@ -28,7 +28,7 @@ impl Default for PktStart {
 /// Send `PktStart` over `TcpStream` to connected user
 ///
 /// ```no_run
-/// use lurk_lcsc::{Protocol, PktStart, LurkError, send_start};
+/// use lurk_protocol::{Protocol, PktStart, LurkError, send_start};
 /// use std::sync::Arc;
 /// use std::net::TcpStream;
 ///

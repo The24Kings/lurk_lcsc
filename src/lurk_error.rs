@@ -28,7 +28,7 @@ impl From<LurkError> for u8 {
     /// Converts a `LurkError` enum variant into its corresponding `u8` value.
     ///     
     /// ```rust
-    /// use lurk_lcsc::lurk_error::LurkError;
+    /// use lurk_protocol::lurk_error::LurkError;
     ///
     /// let err = LurkError::BADROOM;
     /// let err_u8: u8 = err.into();
@@ -43,7 +43,7 @@ impl From<u8> for LurkError {
     /// Converts a `u8` value into its corresponding `LurkError` enum variant.
     ///
     /// ```rust
-    /// use lurk_lcsc::lurk_error::LurkError;
+    /// use lurk_protocol::lurk_error::LurkError;
     ///
     /// let err = LurkError::from(1u8);
     /// assert_eq!(err, LurkError::BADROOM);
@@ -67,7 +67,7 @@ impl std::fmt::Display for LurkError {
     /// Formats the `LurkError` enum variant as a human-readable string.
     ///
     /// ```rust
-    /// use lurk_lcsc::lurk_error::LurkError;
+    /// use lurk_protocol::lurk_error::LurkError;
     /// let err = LurkError::BADROOM;
     /// assert_eq!(format!("{}", err), "BadRoom");
     /// ```

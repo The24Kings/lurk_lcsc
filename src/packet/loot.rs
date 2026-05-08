@@ -27,7 +27,7 @@ impl PktLoot {
 /// Send `PktLoot` over `TcpStream` to connected user
 ///
 /// ```no_run
-/// use lurk_lcsc::{Protocol, PktLoot, LurkError, send_loot};
+/// use lurk_protocol::{Protocol, PktLoot, LurkError, send_loot};
 /// use std::sync::Arc;
 /// use std::net::TcpStream;
 ///

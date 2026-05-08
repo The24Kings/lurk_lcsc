@@ -34,7 +34,7 @@ impl PktPVPFight {
 /// Send `PktPVPFight` over `TcpStream` to connected user
 ///
 /// ```no_run
-/// use lurk_lcsc::{Protocol, PktPVPFight, LurkError, send_pvp};
+/// use lurk_protocol::{Protocol, PktPVPFight, LurkError, send_pvp};
 /// use std::sync::Arc;
 /// use std::net::TcpStream;
 ///

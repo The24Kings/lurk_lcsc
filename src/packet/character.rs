@@ -60,7 +60,7 @@ impl PktCharacter {
 /// Send `PktCharacter` over `TcpStream` to connected user
 ///
 /// ```no_run
-/// use lurk_lcsc::{
+/// use lurk_protocol::{
 ///     Protocol, PktCharacter, LurkError,
 ///     PktType, send_character, CharacterFlags,
 /// };

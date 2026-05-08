@@ -1,4 +1,4 @@
-//! # Lurk LCSC Protocol
+//! # Lurk Protocol
 //!
 //! A lightweight Rust implementation of the **Lurk** protocol created by S. Seth Long, Ph.D.
 //! It provides the fundamental logic for building multiplayer game servers that communicate using the Lurk protocol.
@@ -26,7 +26,7 @@
 //! ### Server Example
 //!
 //! ```no_run
-//! use lurk_lcsc::Protocol;
+//! use lurk_protocol::Protocol;
 //! use std::net::TcpStream;
 //! use std::sync::Arc;
 //!
@@ -55,7 +55,7 @@
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
 // Lurk types in rustdoc of other crates get linked to here.
-#![doc(html_root_url = "https://docs.rs/lurk_lcsc/2.3.21")]
+#![doc(html_root_url = "https://docs.rs/lurk_protocol/2.3.0")]
 // Show which crate feature enables conditionally compiled APIs in documentation.
 #![cfg_attr(docsrs, feature(doc_cfg, rustdoc_internals))]
 #![cfg_attr(docsrs, allow(internal_features))]
@@ -139,7 +139,7 @@ pub mod packet;
 /// Packet capture and tracing utilities.
 ///
 /// ```no_run
-/// use lurk_lcsc::{PktMessage, Parser, PCap};
+/// use lurk_protocol::{PktMessage, Parser, PCap};
 /// use std::net::TcpStream;
 /// use std::sync::Arc;
 ///

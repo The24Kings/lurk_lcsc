@@ -1,4 +1,4 @@
-# lurk_lcsc
+# lurk_protocol
 
 A Rust library for building **Lurk protocol** servers and clients.  
 This crate implements the [Lurk Protocol](https://github.com/The24Kings/LurkProtocol/wiki), enabling MUD text-based MMORPG games over the network.
@@ -20,9 +20,9 @@ This crate implements the [Lurk Protocol](https://github.com/The24Kings/LurkProt
 
 ## Installation
 
-Add `lurk_lcsc` to your `Cargo.toml`:
+Add `lurk_protocol` to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-lurk_lcsc = { version = "2.3.21" }
+lurk_protocol = { version = "2.3.0" }
 ```

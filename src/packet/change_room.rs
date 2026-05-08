@@ -37,7 +37,7 @@ impl From<PktChangeRoom> for u16 {
 /// Send `PktChangeRoom` over `TcpStream` to connected user
 ///
 /// ```no_run
-/// use lurk_lcsc::{Protocol, PktChangeRoom, LurkError, send_change_room};
+/// use lurk_protocol::{Protocol, PktChangeRoom, LurkError, send_change_room};
 /// use std::sync::Arc;
 /// use std::net::TcpStream;
 ///

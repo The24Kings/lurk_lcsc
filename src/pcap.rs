@@ -53,7 +53,7 @@ impl PCap {
     /// Builds a formatted string representation of the provided byte vector.
     ///
     /// ```no_run
-    /// use lurk_lcsc::pcap::PCap;
+    /// use lurk_protocol::pcap::PCap;
     ///
     /// let data = vec![0x48, 0x65, 0x6c, 0x6c, 0x6f, 0x2c, 0x20, 0x57, 0x6f, 0x72, 0x6c, 0x64, 0x21]; // "Hello, World!"
     /// let formatted = PCap::build(data);

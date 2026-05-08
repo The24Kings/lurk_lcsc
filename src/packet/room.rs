@@ -28,7 +28,7 @@ pub struct PktRoom {
 /// Send `PktRoom` over `TcpStream` to connected user
 ///
 /// ```no_run
-/// use lurk_lcsc::{Protocol, PktRoom, PktType, send_room};
+/// use lurk_protocol::{Protocol, PktRoom, PktType, send_room};
 /// use std::sync::Arc;
 /// use std::net::TcpStream;
 ///

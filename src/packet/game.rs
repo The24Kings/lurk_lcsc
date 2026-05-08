@@ -29,7 +29,7 @@ pub struct PktGame {
 /// Send `PktGame` over `TcpStream` to connected user
 ///
 /// ```no_run
-/// use lurk_lcsc::{Protocol, PktGame, PktType, send_game};
+/// use lurk_protocol::{Protocol, PktGame, PktType, send_game};
 /// use std::sync::Arc;
 /// use std::net::TcpStream;
 ///

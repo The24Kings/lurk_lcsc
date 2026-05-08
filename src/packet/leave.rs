@@ -23,7 +23,7 @@ impl Default for PktLeave {
 /// Send `PktLeave` over `TcpStream` to connected user
 ///
 /// ```no_run
-/// use lurk_lcsc::{Protocol, PktLeave, LurkError, send_leave};
+/// use lurk_protocol::{Protocol, PktLeave, LurkError, send_leave};
 /// use std::sync::Arc;
 /// use std::net::TcpStream;
 ///

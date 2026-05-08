@@ -41,7 +41,7 @@ impl PktError {
 /// Send `PktError` over `TcpStream` to connected user
 ///
 /// ```no_run
-/// use lurk_lcsc::{Protocol, PktError, LurkError, send_error};
+/// use lurk_protocol::{Protocol, PktError, LurkError, send_error};
 /// use std::sync::Arc;
 /// use std::net::TcpStream;
 ///
